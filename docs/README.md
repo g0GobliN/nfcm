@@ -8,6 +8,7 @@ Welcome to the NFCM docs.
 | [getting-started.md](getting-started.md) | Install, build, run |
 | [architecture.md](architecture.md) | Runtime design & seams |
 | [research-notes.md](research-notes.md) | Research roadmap |
+| [maintainer.md](maintainer.md) | Branch protection, CI, labels |
 
 ## Community
 

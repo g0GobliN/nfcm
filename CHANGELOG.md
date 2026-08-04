@@ -9,7 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- (none yet)
+- CI: rustfmt, clippy (`-D warnings`), tests, smoke, frontend build + aggregate gate
+- Workflow: reject AI co-author / Generated-by commit trailers
+- Workflow: PR title + secret/large-file sanity checks
+- Dependabot for Cargo, npm, and GitHub Actions
+- CODEOWNERS, label catalog, maintainer docs for branch protection
 
 ### Changed
 

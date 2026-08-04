@@ -1,15 +1,23 @@
-# CI — Rust workspace (desktop Tauri excluded until system WebKit is available in CI)
+# Continuous integration — runs on every PR and on pushes to main.
 
-name: ci
+name: CI
 
 on:
   push:
-    branches: [main, master]
+    branches: [main]
   pull_request:
-    branches: [main, master]
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  rust:
+  rust-fmt:
+    name: Rust fmt
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -17,8 +25,38 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Cache cargo
-        uses: Swatinem/rust-cache@v2
+        with:
+          components: rustfmt
+      - name: Check formatting
+        run: cargo fmt --all -- --check
+
+  rust-clippy:
+    name: Rust clippy
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nfc-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: nfc-runtime
+      - name: Clippy
+        run: cargo clippy --workspace --exclude nfc-desktop --all-targets -- -D warnings
+
+  rust-test:
+    name: Rust test
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: nfc-runtime
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
         with:
           workspaces: nfc-runtime
       - name: Test crates
@@ -27,6 +65,7 @@ jobs:
         run: cargo run -p nfc-runtime --example smoke
 
   frontend:
+    name: Frontend build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -38,7 +77,24 @@ jobs:
           node-version: "22"
           cache: npm
           cache-dependency-path: nfc-runtime/apps/desktop/package-lock.json
-      - name: Install & build
+      - name: Install
+        run: npm ci
+      - name: Typecheck & build
+        run: npm run build
+
+  ci-success:
+    name: CI passed
+    if: always()
+    needs: [rust-fmt, rust-clippy, rust-test, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check jobs
         run: |
-          npm ci || npm install
-          npm run build
+          echo "fmt=${{ needs.rust-fmt.result }}"
+          echo "clippy=${{ needs.rust-clippy.result }}"
+          echo "test=${{ needs.rust-test.result }}"
+          echo "frontend=${{ needs.frontend.result }}"
+          test "${{ needs.rust-fmt.result }}" = "success"
+          test "${{ needs.rust-clippy.result }}" = "success"
+          test "${{ needs.rust-test.result }}" = "success"
+          test "${{ needs.frontend.result }}" = "success"

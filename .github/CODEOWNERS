@@ -1,0 +1,7 @@
+# Default owners for review routing. Update handles as the team grows.
+*       @g0GobliN
+
+/.github/                 @g0GobliN
+/docs/                    @g0GobliN
+/nfc-runtime/crates/      @g0GobliN
+/nfc-runtime/apps/        @g0GobliN

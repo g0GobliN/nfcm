@@ -69,6 +69,7 @@ Data dir: `~/.local/share/nfcm/`
 | [Getting started](docs/getting-started.md) | Install & run |
 | [Architecture](docs/architecture.md) | Runtime design |
 | [Research roadmap](docs/research-notes.md) | Next scientific steps |
+| [Maintainer / CI](docs/maintainer.md) | Branch protection, labels, Dependabot |
 | [Contributing](CONTRIBUTING.md) | How to contribute |
 | [Code of Conduct](CODE_OF_CONDUCT.md) | Community norms |
 | [Security](SECURITY.md) | Vulnerability reporting |

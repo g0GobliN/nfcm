@@ -32,7 +32,10 @@ impl ModelRegistry {
         let models_dir = data_dir.join("models");
         std::fs::create_dir_all(&models_dir)?;
         let db_path = data_dir.join("registry.sqlite");
-        let registry = Self { db_path, models_dir };
+        let registry = Self {
+            db_path,
+            models_dir,
+        };
         registry.init_schema()?;
         Ok(registry)
     }
@@ -204,8 +207,13 @@ mod tests {
     fn upsert_list_delete() {
         let dir = tempdir().unwrap();
         let reg = ModelRegistry::open(dir.path()).unwrap();
-        let model = Model::new("Python Coder", TaskType::Coding, Architecture::Mock, 64 * 1024 * 1024)
-            .with_skills(["python", "debugging"]);
+        let model = Model::new(
+            "Python Coder",
+            TaskType::Coding,
+            Architecture::Mock,
+            64 * 1024 * 1024,
+        )
+        .with_skills(["python", "debugging"]);
         let id = model.id;
         reg.upsert(&model).unwrap();
         assert_eq!(reg.list().unwrap().len(), 1);

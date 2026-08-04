@@ -83,11 +83,10 @@ fn compile_brain(
     memory_limit_mb: u64,
     load: bool,
 ) -> Result<Model, String> {
-    let profile = state.engine.compile_category(
-        parse_category(&category),
-        language,
-        Some(memory_limit_mb),
-    );
+    let profile =
+        state
+            .engine
+            .compile_category(parse_category(&category), language, Some(memory_limit_mb));
     state
         .engine
         .compile_brain(profile, load, |_| {})
@@ -153,7 +152,9 @@ fn console_command(state: State<'_, AppState>, line: String) -> Result<Vec<Strin
     } else if lower == "status" {
         let snap = state.engine.snapshot().map_err(|e| e.to_string())?;
         state.engine.append_console("> status");
-        state.engine.append_console(format!("status: {:?}", snap.status));
+        state
+            .engine
+            .append_console(format!("status: {:?}", snap.status));
         if let Some(m) = snap.active_model {
             state.engine.append_console(format!(
                 "brain: {} ({} MB)",
@@ -178,7 +179,9 @@ fn console_command(state: State<'_, AppState>, line: String) -> Result<Vec<Strin
     } else if lower == "clear" {
         // Soft clear: just note it; snapshot still returns full history.
         state.engine.append_console("> clear");
-        state.engine.append_console("(history retained in snapshot; UI may filter)");
+        state
+            .engine
+            .append_console("(history retained in snapshot; UI may filter)");
     } else if let Some(rest) = lower.strip_prefix("compile ") {
         let prompt = trimmed[trimmed.len() - rest.len()..].to_string();
         // Use original casing for prompt body after "compile "
@@ -194,9 +197,7 @@ fn console_command(state: State<'_, AppState>, line: String) -> Result<Vec<Strin
             .map_err(|e| e.to_string())?;
     } else if !trimmed.is_empty() {
         state.engine.append_console(format!("> {trimmed}"));
-        state
-            .engine
-            .append_console("Unknown command. Type `help`.");
+        state.engine.append_console("Unknown command. Type `help`.");
     }
 
     let snap = state.engine.snapshot().map_err(|e| e.to_string())?;
@@ -209,8 +210,8 @@ pub fn run() {
         .with_env_filter("nfc_runtime=info,nfc_desktop=info")
         .init();
 
-    let engine = RuntimeEngine::start(RuntimeConfig::new(data_dir()))
-        .expect("failed to start NFCM runtime");
+    let engine =
+        RuntimeEngine::start(RuntimeConfig::new(data_dir())).expect("failed to start NFCM runtime");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())

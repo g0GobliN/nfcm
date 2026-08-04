@@ -1,0 +1,46 @@
+# Suggested labels for the repository.
+# Apply once with: gh label create ...  or GitHub UI → Issues → Labels
+
+- name: bug
+  color: d73a4a
+  description: Something isn't working
+
+- name: enhancement
+  color: a2eeef
+  description: New feature or request
+
+- name: docs
+  color: 0075ca
+  description: Documentation improvements
+
+- name: good first issue
+  color: 7057ff
+  description: Good for newcomers
+
+- name: help wanted
+  color: 008672
+  description: Extra attention is needed
+
+- name: research
+  color: f9d0c4
+  description: Neural generation / compression research
+
+- name: dependencies
+  color: 0366d6
+  description: Dependency updates
+
+- name: rust
+  color: dea584
+  description: Rust / crates
+
+- name: javascript
+  color: f1e05a
+  description: Frontend / TypeScript
+
+- name: ci
+  color: e4e669
+  description: Continuous integration
+
+- name: security
+  color: ee0701
+  description: Security-related

@@ -47,7 +47,12 @@ impl CacheManager {
         self.max_bytes
     }
 
-    pub fn put(&self, key: &str, bytes: &[u8], model_id: Option<Uuid>) -> Result<CacheEntry, CacheError> {
+    pub fn put(
+        &self,
+        key: &str,
+        bytes: &[u8],
+        model_id: Option<Uuid>,
+    ) -> Result<CacheEntry, CacheError> {
         let path = self.root.join(sanitize_key(key));
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
@@ -102,7 +107,11 @@ impl CacheManager {
         if usage <= self.max_bytes {
             return Ok(());
         }
-        debug!(usage, max = self.max_bytes, "cache over budget; eviction needed");
+        debug!(
+            usage,
+            max = self.max_bytes,
+            "cache over budget; eviction needed"
+        );
         // Phase 1: delete oldest meta-tracked files until under budget.
         let mut metas: Vec<CacheEntry> = fs::read_dir(&self.root)?
             .flatten()
@@ -133,7 +142,13 @@ impl CacheManager {
 
 fn sanitize_key(key: &str) -> String {
     key.chars()
-        .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 

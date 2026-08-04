@@ -60,7 +60,18 @@ impl TaskCompiler {
 }
 
 fn detect_domain(text: &str) -> TaskCategory {
-    if contains_any(text, &["code", "coding", "program", "rust", "python", "javascript", "debug"]) {
+    if contains_any(
+        text,
+        &[
+            "code",
+            "coding",
+            "program",
+            "rust",
+            "python",
+            "javascript",
+            "debug",
+        ],
+    ) {
         TaskCategory::Coding
     } else if contains_any(text, &["math", "algebra", "calculus", "proof", "equation"]) {
         TaskCategory::Math
@@ -109,10 +120,7 @@ fn detect_skills(domain: TaskCategory, text: &str, language: Option<&str>) -> Ve
 
 fn default_skills(domain: TaskCategory, language: Option<&str>) -> Vec<String> {
     let mut skills = match domain {
-        TaskCategory::Coding => vec![
-            "debugging".into(),
-            "software architecture".into(),
-        ],
+        TaskCategory::Coding => vec!["debugging".into(), "software architecture".into()],
         TaskCategory::Math => vec!["algebra".into(), "reasoning".into()],
         TaskCategory::Writing => vec!["editing".into(), "clarity".into()],
         TaskCategory::Research => vec!["literature review".into(), "summarization".into()],

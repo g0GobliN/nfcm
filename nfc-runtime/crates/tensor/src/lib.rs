@@ -9,7 +9,10 @@ use thiserror::Error;
 #[derive(Debug, Error)]
 pub enum TensorError {
     #[error("shape mismatch: expected {expected:?}, got {got:?}")]
-    ShapeMismatch { expected: Vec<usize>, got: Vec<usize> },
+    ShapeMismatch {
+        expected: Vec<usize>,
+        got: Vec<usize>,
+    },
     #[error("empty tensor")]
     Empty,
     #[error("invalid dtype: {0}")]

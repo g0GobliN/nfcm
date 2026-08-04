@@ -89,8 +89,16 @@ impl MemoryManager {
             allocations: HashMap::new(),
         };
         // Reserve generator + cache soft slots so the dashboard matches the design example.
-        let _ = mgr.allocate("generator-reserve", ComponentKind::Generator, mgr.budget.generator_reserve_bytes);
-        let _ = mgr.allocate("cache-reserve", ComponentKind::Cache, mgr.budget.cache_reserve_bytes);
+        let _ = mgr.allocate(
+            "generator-reserve",
+            ComponentKind::Generator,
+            mgr.budget.generator_reserve_bytes,
+        );
+        let _ = mgr.allocate(
+            "cache-reserve",
+            ComponentKind::Cache,
+            mgr.budget.cache_reserve_bytes,
+        );
         mgr
     }
 
@@ -230,7 +238,9 @@ mod tests {
             cache_reserve_bytes: 0,
         });
         // Clear default reserves by using tiny budget with zero reserves
-        let err = mm.allocate("big", ComponentKind::ActiveModel, 200).unwrap_err();
+        let err = mm
+            .allocate("big", ComponentKind::ActiveModel, 200)
+            .unwrap_err();
         assert!(matches!(err, MemoryError::Insufficient { .. }));
     }
 }

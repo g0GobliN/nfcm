@@ -8,9 +8,7 @@ use nfc_generator::{
     TaskProfile, WeightGenerator,
 };
 use nfc_hardware::{HardwareDetector, HardwareProfile};
-use nfc_storage::{
-    Architecture, CacheManager, Model, ModelRegistry, ModelStatus, TaskType,
-};
+use nfc_storage::{Architecture, CacheManager, Model, ModelRegistry, ModelStatus, TaskType};
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
@@ -96,9 +94,8 @@ pub struct RuntimeEngine {
 
 impl RuntimeEngine {
     pub fn start(config: RuntimeConfig) -> Result<Self, RuntimeError> {
-        std::fs::create_dir_all(&config.data_dir).map_err(|e| {
-            RuntimeError::Storage(format!("create data dir: {e}"))
-        })?;
+        std::fs::create_dir_all(&config.data_dir)
+            .map_err(|e| RuntimeError::Storage(format!("create data dir: {e}")))?;
 
         let registry = ModelRegistry::open(config.data_dir.join("registry"))
             .map_err(|e| RuntimeError::Storage(e.to_string()))?;
@@ -108,8 +105,8 @@ impl RuntimeEngine {
         )
         .map_err(|e| RuntimeError::Storage(e.to_string()))?;
 
-        let hardware = HardwareDetector::detect()
-            .map_err(|e| RuntimeError::Hardware(e.to_string()))?;
+        let hardware =
+            HardwareDetector::detect().map_err(|e| RuntimeError::Hardware(e.to_string()))?;
 
         let mut memory = MemoryManager::new(config.memory_budget);
         // Cap soft limit to a fraction of available RAM if smaller than default.
@@ -187,12 +184,7 @@ impl RuntimeEngine {
         memory_mb: u64,
     ) -> Result<Model, RuntimeError> {
         let mut inner = self.inner.lock();
-        let mut model = Model::new(
-            name,
-            task_type,
-            Architecture::Mock,
-            memory_mb * 1024 * 1024,
-        );
+        let mut model = Model::new(name, task_type, Architecture::Mock, memory_mb * 1024 * 1024);
         model.status = ModelStatus::Ready;
         model.description = "Imported stub (no weights) — registry entry only".into();
         inner
@@ -342,9 +334,15 @@ impl RuntimeEngine {
         Self::unload_locked(&mut inner)
     }
 
-    pub fn run_inference(&self, request: InferenceRequest) -> Result<InferenceResponse, RuntimeError> {
+    pub fn run_inference(
+        &self,
+        request: InferenceRequest,
+    ) -> Result<InferenceResponse, RuntimeError> {
         let inner = self.inner.lock();
-        let model = inner.active_model.as_ref().ok_or(RuntimeError::NoModelLoaded)?;
+        let model = inner
+            .active_model
+            .as_ref()
+            .ok_or(RuntimeError::NoModelLoaded)?;
         let response = mock_infer(model.id, &model.name, &request);
         Ok(response)
     }
@@ -358,8 +356,8 @@ impl RuntimeEngine {
     }
 
     pub fn refresh_hardware(&self) -> Result<HardwareProfile, RuntimeError> {
-        let profile = HardwareDetector::detect()
-            .map_err(|e| RuntimeError::Hardware(e.to_string()))?;
+        let profile =
+            HardwareDetector::detect().map_err(|e| RuntimeError::Hardware(e.to_string()))?;
         self.inner.lock().hardware = profile.clone();
         Ok(profile)
     }
@@ -381,7 +379,9 @@ impl RuntimeEngine {
             Self::unload_locked(inner)?;
         }
 
-        let need = generated.memory_size_bytes.max(model.memory_requirement_bytes);
+        let need = generated
+            .memory_size_bytes
+            .max(model.memory_requirement_bytes);
         match inner
             .memory
             .allocate(model.name.clone(), ComponentKind::ActiveModel, need)
@@ -482,9 +482,7 @@ mod tests {
         let profile = engine.compile_prompt("I need a Python coding assistant");
         assert_eq!(profile.domain, TaskCategory::Coding);
 
-        let model = engine
-            .compile_brain(profile, true, |_| {})
-            .unwrap();
+        let model = engine.compile_brain(profile, true, |_| {}).unwrap();
         assert!(model.name.to_lowercase().contains("python") || model.name.contains("Coding"));
 
         let snap = engine.snapshot().unwrap();

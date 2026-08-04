@@ -56,14 +56,38 @@ Fix memory budget underflow on unload
 Docs: clarify WeightGenerator seam
 ```
 
+### Commit attribution (required)
+
+- Commits must be attributed to **human contributors** only.
+- **Do not** add AI tools as co-authors. CI rejects trailers such as:
+  - `Co-authored-by: Cursor …`
+  - `Co-authored-by: Copilot …`
+  - `Co-authored-by: ChatGPT …` / Claude / Gemini / etc.
+  - `Generated-by: …` / `Made-with: Cursor`
+- Using AI assistants to help write code is allowed; claiming them as co-authors is not.
+- Sign-off / real human co-authors (people) are fine.
+
 ## Pull request checklist
 
 - [ ] Tests pass (`cargo test --workspace --exclude nfc-desktop`)
+- [ ] `cargo fmt` and `cargo clippy` clean (CI enforces)
 - [ ] Frontend builds if UI changed (`npm run build` in `apps/desktop`)
 - [ ] Docs updated if needed
 - [ ] No secrets / large binaries committed
 - [ ] Mock / research paths remain honestly labeled
+- [ ] No AI co-author / generated-by trailers in commits
 
+## CI
+
+Every PR must pass:
+
+| Workflow | What it checks |
+|----------|----------------|
+| **CI** | `rustfmt`, `clippy`, tests, smoke example, frontend build |
+| **No AI co-author** | Commit trailers / AI attribution markers |
+| **PR checks** | Title hygiene, secret/large-file guards |
+
+See [docs/maintainer.md](docs/maintainer.md) for branch protection setup.
 ## Issue labels (suggested)
 
 | Label | Use |

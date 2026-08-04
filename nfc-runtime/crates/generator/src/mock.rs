@@ -30,7 +30,10 @@ impl MockWeightGenerator {
         Self::default()
     }
 
-    fn target_bytes(task: &TaskProfile, min_memory_bytes: u64) -> Result<u64, WeightGeneratorError> {
+    fn target_bytes(
+        task: &TaskProfile,
+        min_memory_bytes: u64,
+    ) -> Result<u64, WeightGeneratorError> {
         if task.memory_limit_bytes < min_memory_bytes {
             return Err(WeightGeneratorError::MemoryLimitTooLow {
                 limit_bytes: task.memory_limit_bytes,

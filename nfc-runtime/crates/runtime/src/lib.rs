@@ -18,6 +18,4 @@ pub use nfc_generator::{
     TaskProfile, WeightGenerator,
 };
 pub use nfc_hardware::{HardwareDetector, HardwareProfile};
-pub use nfc_storage::{
-    Architecture, CacheManager, Model, ModelRegistry, ModelStatus, TaskType,
-};
+pub use nfc_storage::{Architecture, CacheManager, Model, ModelRegistry, ModelStatus, TaskType};
