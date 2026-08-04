@@ -7,7 +7,7 @@ export default function Dashboard() {
     return <p className="text-mist-dim">Loading runtime…</p>;
   }
 
-  const { hardware, memory, active_model, status } = snapshot;
+  const { hardware, memory, active_model, status, inference_backend } = snapshot;
   const pct = Math.min(100, Math.round((memory.used_bytes / memory.max_ram_bytes) * 100));
   const gpu = hardware.gpus[0];
 
@@ -44,6 +44,12 @@ export default function Dashboard() {
             {active_model.architecture}
           </p>
         )}
+        <p className="mt-3 text-sm text-mist-dim">
+          Backend:{" "}
+          <span className="text-mist">{inference_backend.name}</span>
+          {inference_backend.is_mock ? " · mock" : ""}
+          {inference_backend.ready ? " · ready" : " · idle"}
+        </p>
       </section>
 
       <section className="panel p-6">

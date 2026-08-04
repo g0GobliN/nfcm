@@ -41,11 +41,12 @@ Default soft budget ~1 GiB (or half of available RAM):
 
 ## Inference honesty
 
-`run_inference` returns a **mock** response labeled `is_mock: true`. No capability claims.
+`run_inference` goes through `InferenceBackend`. Default is mock (`is_mock: true`).
+Candle (optional feature) and GGUF/llama.cpp are pluggable — see [inference-backends.md](inference-backends.md).
 
 ## Future backends
 
-`Architecture` includes `Onnx`, `Gguf`, `Candle` for compatibility layers — not wired in Phase 1.
+`Architecture` includes `Onnx`, `Gguf`, `Candle`. Runtime backends: `BackendKind::{Mock, Candle, Gguf}`.
 
 ## Research seam
 

@@ -55,6 +55,17 @@ function mockSnapshot(): RuntimeSnapshot {
     models: [],
     logs: ["Preview mode: start with `npm run tauri dev` for live runtime"],
     console_lines: ["> runtime preview", "Ready."],
+    inference_backend: {
+      id: "mock",
+      name: "mock-v1",
+      is_mock: true,
+      ready: true,
+      capabilities: {
+        always_available: true,
+        loads_external_weights: false,
+        notes: "Preview stub",
+      },
+    },
   };
 }
 

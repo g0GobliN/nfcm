@@ -9,6 +9,7 @@ Welcome to the NFCM docs.
 | [architecture.md](architecture.md) | Runtime design & seams |
 | [research-notes.md](research-notes.md) | Research roadmap |
 | [maintainer.md](maintainer.md) | Branch protection, CI, labels |
+| [inference-backends.md](inference-backends.md) | Mock / Candle / GGUF seams |
 
 ## Community
 
