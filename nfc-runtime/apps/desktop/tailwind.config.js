@@ -25,8 +25,8 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"Syne"', "system-ui", "sans-serif"],
-        sans: ['"Syne"', "system-ui", "sans-serif"],
+        display: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+        sans: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
       },
       boxShadow: {

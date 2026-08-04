@@ -57,7 +57,7 @@ export default function ModelManager() {
     <div className="page-enter mx-auto max-w-5xl space-y-8">
       <header>
         <p className="label mb-1">Registry</p>
-        <h1 className="font-display text-4xl font-extrabold tracking-tight text-white">Models</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Models</h1>
         <p className="mt-2 text-mist-dim">
           Installed and generated brains. Load one before chatting.
         </p>

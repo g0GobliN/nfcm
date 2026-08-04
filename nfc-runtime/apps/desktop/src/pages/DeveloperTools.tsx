@@ -12,7 +12,7 @@ export default function DeveloperTools() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <header>
-        <h1 className="font-display text-3xl font-bold text-white">Developer Tools</h1>
+        <h1 className="font-display text-2xl font-semibold text-white">Developer Tools</h1>
         <p className="mt-2 text-mist-dim">Runtime logs, API status, model metadata.</p>
       </header>
 

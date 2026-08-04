@@ -28,7 +28,7 @@ export default function Dashboard() {
             />
             <div>
               <p className="label mb-2">Neural Foundation</p>
-              <h1 className="font-display text-4xl font-extrabold tracking-tight text-white md:text-5xl">
+              <h1 className="font-display text-3xl font-semibold tracking-tight text-white md:text-4xl">
                 NFCM
               </h1>
               <p className="mt-2 max-w-md text-sm text-mist-dim">
@@ -61,7 +61,7 @@ export default function Dashboard() {
       <section className="panel relative overflow-hidden p-7">
         <div className="pointer-events-none absolute right-0 top-0 h-28 w-28 bg-signal/10 blur-2xl" />
         <div className="label">Active brain</div>
-        <div className="mt-3 font-display text-3xl font-bold tracking-tight text-white">
+        <div className="mt-3 font-display text-2xl font-semibold tracking-tight text-white">
           {active_model?.name ?? "None loaded"}
         </div>
         {active_model ? (

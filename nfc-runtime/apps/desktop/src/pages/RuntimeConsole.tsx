@@ -39,7 +39,7 @@ export default function RuntimeConsole() {
   return (
     <div className="mx-auto flex h-[calc(100vh-4rem)] max-w-4xl flex-col">
       <header className="mb-4">
-        <h1 className="font-display text-3xl font-bold text-white">Runtime Console</h1>
+        <h1 className="font-display text-2xl font-semibold text-white">Runtime Console</h1>
         <p className="mt-2 text-sm text-mist-dim">
           Commands: <code className="text-signal">compile …</code>,{" "}
           <code className="text-signal">status</code>,{" "}

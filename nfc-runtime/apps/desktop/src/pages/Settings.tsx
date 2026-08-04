@@ -56,7 +56,7 @@ export default function SettingsPage() {
     <div className="page-enter mx-auto max-w-3xl space-y-8">
       <header>
         <p className="label mb-1">Runtime</p>
-        <h1 className="font-display text-4xl font-extrabold tracking-tight text-white">Settings</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-white">Settings</h1>
         <p className="mt-2 text-mist-dim">
           Inference backend and GGUF import. GGUF needs{" "}
           <code className="text-signal">llama-completion</code> (or{" "}

@@ -148,16 +148,22 @@ fn unload_model(state: State<'_, AppState>) -> Result<(), String> {
     state.engine.unload_model().map_err(|e| e.to_string())
 }
 
+/// Run on a blocking pool so long GGUF/llama.cpp work does not freeze the UI thread
+/// (otherwise the chat spinner never paints during the wait).
 #[tauri::command]
-fn run_inference(
+async fn run_inference(
     state: State<'_, AppState>,
     prompt: String,
     max_tokens: u32,
 ) -> Result<nfc_runtime::InferenceResponse, String> {
-    state
-        .engine
-        .run_inference(InferenceRequest { prompt, max_tokens })
-        .map_err(|e| e.to_string())
+    let engine = Arc::clone(&state.engine);
+    tauri::async_runtime::spawn_blocking(move || {
+        engine
+            .run_inference(InferenceRequest { prompt, max_tokens })
+            .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
