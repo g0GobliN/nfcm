@@ -170,6 +170,7 @@ flowchart LR
 | [Architecture](docs/architecture.md) | Design and seams |
 | [Inference backends](docs/inference-backends.md) | Mock / Candle / GGUF |
 | [Research roadmap](docs/research-notes.md) | Next scientific steps |
+| [TARC method](nfc-runtime/experiments/neural-generation/METHOD.md) | Your research loop (codebook → decode → page → eval) |
 | [Phase 2 — Latent](docs/phase-2.md) | Latent → tiny weights |
 | [Phase 3 — Codebook](docs/phase-3.md) | Skill residuals activated per task |
 | [Eval suite](docs/eval.md) | Fixed-RAM structural / discrimination metrics |

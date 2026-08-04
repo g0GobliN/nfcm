@@ -93,18 +93,19 @@ pub fn resolve_checkpoint_path() -> Option<std::path::PathBuf> {
             return Some(path);
         }
     }
-    // Walk up from CWD looking for experiments/.../toy-v1.json
+    // Prefer task-metric checkpoint, then toy-v1.
     let mut dir = std::env::current_dir().ok()?;
     for _ in 0..6 {
-        let candidate =
-            dir.join("experiments/neural-generation/hypernetwork/checkpoints/toy-v1.json");
-        if candidate.is_file() {
-            return Some(candidate);
-        }
-        let candidate2 = dir
-            .join("nfc-runtime/experiments/neural-generation/hypernetwork/checkpoints/toy-v1.json");
-        if candidate2.is_file() {
-            return Some(candidate2);
+        for rel in [
+            "experiments/neural-generation/hypernetwork/checkpoints/task-v1.json",
+            "nfc-runtime/experiments/neural-generation/hypernetwork/checkpoints/task-v1.json",
+            "experiments/neural-generation/hypernetwork/checkpoints/toy-v1.json",
+            "nfc-runtime/experiments/neural-generation/hypernetwork/checkpoints/toy-v1.json",
+        ] {
+            let candidate = dir.join(rel);
+            if candidate.is_file() {
+                return Some(candidate);
+            }
         }
         if !dir.pop() {
             break;

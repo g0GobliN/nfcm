@@ -1,44 +1,31 @@
 # Neural generation experiments
 
+**Method:** [METHOD.md](METHOD.md) — Task-Activated Residual Compaction (**TARC**)
+
 Training / eval for weight generators. **Not** production LLM training.
 
-## Skill codebook (Phase 3)
-
-```text
-codebook/skill-v1.json              # deterministic defaults
-codebook/train_codebook.py          # toy contrastive trainer
-codebook/checkpoints/skill-trained-v1.json
-```
-
-Compressed skill residuals. The latent generator activates matching skills, blends them into `LatentCode`, and **scales subnetwork depth/width** by how many skills hit.
+## Skill codebook (Phase 3 / TARC)
 
 ```bash
-cd nfc-runtime/experiments/neural-generation/codebook
-python3 train_codebook.py
-# → checkpoints/skill-trained-v1.json (auto-picked if present)
-
-cd nfc-runtime
-NFCM_WEIGHT_GENERATOR=latent cargo run -p nfc-runtime --example eval_generators
+cd codebook
+python3 train_task_loss.py    # → checkpoints/skill-task-v1.json  (preferred)
+python3 train_codebook.py     # older margin-only toy
 ```
 
-Override: `NFCM_CODEBOOK=/path/to.json`
-
-See [docs/phase-3.md](../../../docs/phase-3.md).
-
-## Hypernetwork (toy)
+## Hypernetwork
 
 ```bash
-cd nfc-runtime/experiments/neural-generation/hypernetwork
-python3 train_toy.py
-# → checkpoints/toy-v1.json
+cd hypernetwork
+python3 train_task.py         # → checkpoints/task-v1.json  (preferred, task metrics)
+python3 train_toy.py          # older teacher-mimic
 ```
 
-Runtime auto-loads that checkpoint when present (or set `NFCM_HYPERNET_CHECKPOINT=/path/to.json`).
+## Eval snapshot
 
 ```bash
 cd nfc-runtime
-NFCM_WEIGHT_GENERATOR=latent cargo run -p nfc-runtime --example smoke
-# generator name becomes latent-hypernet-v1 when checkpoint loads
+./scripts/eval-suite.sh
+# results also under results/tarc-latest.json after a local capture
 ```
 
-Honest scope: learns a remix of the outer-product teacher. Not foundation-model quality.
+Runtime auto-loads `skill-task-v1` + `task-v1` when present (override with `NFCM_CODEBOOK` / `NFCM_HYPERNET_CHECKPOINT`).

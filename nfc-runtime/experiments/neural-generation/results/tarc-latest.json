@@ -1,0 +1,129 @@
+{
+  "method": "TARC",
+  "budget_mb": 256,
+  "discrimination": [
+    {
+      "within": -1.0,
+      "across": -0.1111,
+      "separation": -0.8889
+    },
+    {
+      "within": -0.0623,
+      "across": 0.0016,
+      "separation": -0.0639
+    }
+  ],
+  "cases": [
+    {
+      "allocated_bytes": 320032,
+      "case": "coding-slim",
+      "claimed_mb": 140,
+      "codebook_id": "skill-task-v1+python",
+      "domain": "coding",
+      "generator": "latent-hypernet-v1",
+      "kind": "latent",
+      "latent_dim": 64,
+      "layers": 4,
+      "probe_energy": {
+        "delta": 107.1176528930664,
+        "matched_prompt": 125.7921142578125,
+        "mismatched_prompt": 18.67445945739746
+      },
+      "skill_hits": 1,
+      "skills": [
+        "python"
+      ],
+      "under_claim": true
+    },
+    {
+      "allocated_bytes": 818736,
+      "case": "coding-wide",
+      "claimed_mb": 140,
+      "codebook_id": "skill-task-v1+python,debugging,testing,refactoring",
+      "domain": "coding",
+      "generator": "latent-hypernet-v1",
+      "kind": "latent",
+      "latent_dim": 64,
+      "layers": 5,
+      "probe_energy": {
+        "delta": -79.29318237304688,
+        "matched_prompt": 490.6408386230469,
+        "mismatched_prompt": 569.9340209960938
+      },
+      "skill_hits": 4,
+      "skills": [
+        "python",
+        "debugging",
+        "testing",
+        "refactoring"
+      ],
+      "under_claim": true
+    },
+    {
+      "allocated_bytes": 435744,
+      "case": "math",
+      "claimed_mb": 140,
+      "codebook_id": "skill-task-v1+math,calculus",
+      "domain": "math",
+      "generator": "latent-hypernet-v1",
+      "kind": "latent",
+      "latent_dim": 64,
+      "layers": 4,
+      "probe_energy": {
+        "delta": 341.19219970703125,
+        "matched_prompt": 381.2645263671875,
+        "mismatched_prompt": 40.07233810424805
+      },
+      "skill_hits": 2,
+      "skills": [
+        "math",
+        "calculus"
+      ],
+      "under_claim": true
+    },
+    {
+      "allocated_bytes": 343944,
+      "case": "writing",
+      "claimed_mb": 140,
+      "codebook_id": "skill-task-v1+writing",
+      "domain": "writing",
+      "generator": "latent-hypernet-v1",
+      "kind": "latent",
+      "latent_dim": 64,
+      "layers": 4,
+      "probe_energy": {
+        "delta": 16.340606689453125,
+        "matched_prompt": 46.70654296875,
+        "mismatched_prompt": 30.365936279296875
+      },
+      "skill_hits": 1,
+      "skills": [
+        "writing"
+      ],
+      "under_claim": true
+    },
+    {
+      "allocated_bytes": 383104,
+      "case": "research",
+      "claimed_mb": 140,
+      "codebook_id": "skill-task-v1+research,summarization",
+      "domain": "research",
+      "generator": "latent-hypernet-v1",
+      "kind": "latent",
+      "latent_dim": 64,
+      "layers": 4,
+      "probe_energy": {
+        "delta": -1.1798095703125,
+        "matched_prompt": 11.446952819824219,
+        "mismatched_prompt": 12.626762390136719
+      },
+      "skill_hits": 2,
+      "skills": [
+        "research",
+        "summarization"
+      ],
+      "under_claim": true
+    }
+  ],
+  "notes": "Structural metrics only \u2014 not LLM quality. NFCM research snapshot."
+}

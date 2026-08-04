@@ -172,6 +172,10 @@ pub fn resolve_codebook_path() -> Option<PathBuf> {
         }
     }
     let candidates = [
+        PathBuf::from("experiments/neural-generation/codebook/checkpoints/skill-task-v1.json"),
+        PathBuf::from(
+            "nfc-runtime/experiments/neural-generation/codebook/checkpoints/skill-task-v1.json",
+        ),
         PathBuf::from("experiments/neural-generation/codebook/checkpoints/skill-trained-v1.json"),
         PathBuf::from(
             "nfc-runtime/experiments/neural-generation/codebook/checkpoints/skill-trained-v1.json",
@@ -186,7 +190,11 @@ pub fn resolve_codebook_path() -> Option<PathBuf> {
     }
     if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
         let root = PathBuf::from(manifest).join("../../experiments/neural-generation/codebook");
-        for name in ["checkpoints/skill-trained-v1.json", "skill-v1.json"] {
+        for name in [
+            "checkpoints/skill-task-v1.json",
+            "checkpoints/skill-trained-v1.json",
+            "skill-v1.json",
+        ] {
             let p = root.join(name);
             if p.is_file() {
                 return Some(p);
