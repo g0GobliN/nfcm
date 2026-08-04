@@ -2,15 +2,20 @@
 //!
 //! - Phase 1: [`MockWeightGenerator`] — metadata-only placeholder
 //! - Phase 2: [`LatentWeightGenerator`] — latent → tiny real tensors
+//! - Phase 3: [`SkillCodebook`] — compressed skill residuals blended into the latent
 //!   (untrained stub, or trained toy checkpoint via `NFCM_HYPERNET_CHECKPOINT`)
 //!
 //! Select via `NFCM_WEIGHT_GENERATOR=mock|latent` or [`create_generator`].
+//! Override codebook with `NFCM_CODEBOOK=/path/to/skill-v1.json`.
 
 mod artifact;
 mod checkpoint;
+mod codebook;
 mod compiler;
+mod eval;
 mod latent;
 mod mock;
+mod pager;
 mod types;
 
 pub use artifact::{
@@ -18,9 +23,18 @@ pub use artifact::{
     save_generated_model, ArtifactError,
 };
 pub use checkpoint::{resolve_checkpoint_path, CheckpointError, HyperCheckpoint};
+pub use codebook::{
+    load_or_builtin as load_codebook, resolve_codebook_path, CodebookError, SkillCodebook,
+    DEFAULT_CODEBOOK_ID,
+};
 pub use compiler::TaskCompiler;
+pub use eval::{
+    default_cases, discrimination, metrics_for, run_suite, CaseMetrics, DiscriminationMetrics,
+    EvalCase, SuiteReport,
+};
 pub use latent::LatentWeightGenerator;
 pub use mock::MockWeightGenerator;
+pub use pager::{skill_bytes, PagerStats, SkillPager};
 pub use types::{
     generate_with_progress, GeneratedModel, GenerationProgress, LatentCode, LayerSpec,
     OptimizationProfile, TaskCategory, TaskProfile, WeightGenerator, WeightGeneratorError,
@@ -85,8 +99,7 @@ pub fn generator_info(kind: GeneratorKind, gen: &dyn WeightGenerator) -> Generat
             if gen.name().contains("hypernet") {
                 "Trained toy hypernetwork checkpoint decode — not an LLM.".into()
             } else {
-                "Phase 2 latent-proto — deterministic untrained hypernetwork stub with tiny tensors."
-                    .into()
+                "Phase 2+3 latent-proto — skill codebook residuals + tiny untrained tensors.".into()
             }
         }
     };

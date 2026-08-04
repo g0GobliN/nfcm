@@ -55,7 +55,7 @@ impl TaskProfile {
     }
 }
 
-/// Compact latent handle — placeholder for future compressed knowledge codes.
+/// Compact latent handle — task encoding plus optional codebook residuals.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct LatentCode {
     pub dim: usize,
@@ -129,6 +129,20 @@ pub trait WeightGenerator: Send + Sync {
     fn name(&self) -> &str;
 
     fn generate(&self, task: TaskProfile) -> Result<GeneratedModel, WeightGeneratorError>;
+
+    /// Evict cold skill residuals; returns bytes freed from the hot working set.
+    fn optimize_pages(&self) -> u64 {
+        0
+    }
+
+    /// Resident codebook working-set size in bytes.
+    fn resident_skill_bytes(&self) -> u64 {
+        0
+    }
+
+    fn pager_stats(&self) -> Option<crate::pager::PagerStats> {
+        None
+    }
 }
 
 /// Shared progress wrapper for any [`WeightGenerator`].

@@ -42,6 +42,7 @@ export interface MemorySnapshot {
   generator_bytes: number;
   active_model_bytes: number;
   cache_bytes: number;
+  codebook_bytes?: number;
   other_bytes: number;
 }
 

@@ -37,6 +37,7 @@ function mockSnapshot(): RuntimeSnapshot {
       generator_bytes: 300 * 1024 * 1024,
       active_model_bytes: 420 * 1024 * 1024,
       cache_bytes: 100 * 1024 * 1024,
+      codebook_bytes: 1024,
       other_bytes: 0,
     },
     active_model: {

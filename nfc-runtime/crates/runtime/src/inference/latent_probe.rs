@@ -112,6 +112,13 @@ impl LatentProbeBackend {
         let energy = x.iter().map(|v| v.abs()).sum::<f32>() / x.len().max(1) as f32;
         (x, energy)
     }
+
+    /// Activation energy for the current loaded brain (eval / routing metrics).
+    pub fn activation_energy(&self, prompt: &str) -> Result<f32, InferenceError> {
+        let spec = self.loaded.as_ref().ok_or(InferenceError::NotAttached)?;
+        let (_acts, energy) = Self::forward(&spec.matrices, prompt);
+        Ok(energy)
+    }
 }
 
 impl InferenceBackend for LatentProbeBackend {

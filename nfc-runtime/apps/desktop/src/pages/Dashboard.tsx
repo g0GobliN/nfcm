@@ -100,10 +100,11 @@ export default function Dashboard() {
             style={{ width: `${pct}%` }}
           />
         </div>
-        <div className="mt-5 grid grid-cols-3 gap-3 text-sm">
+        <div className="mt-5 grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
           <MemPart label="Generator" bytes={memory.generator_bytes} />
           <MemPart label="Active model" bytes={memory.active_model_bytes} />
           <MemPart label="Cache" bytes={memory.cache_bytes} />
+          <MemPart label="Codebook" bytes={memory.codebook_bytes ?? 0} />
         </div>
       </section>
     </div>

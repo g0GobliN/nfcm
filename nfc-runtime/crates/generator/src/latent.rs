@@ -6,11 +6,14 @@
 //! - Emits real tiny f32 tensors via outer-product recipe or checkpoint decode
 
 use crate::checkpoint::HyperCheckpoint;
+use crate::codebook::SkillCodebook;
+use crate::pager::{PagerStats, SkillPager};
 use crate::types::{
     GeneratedModel, LatentCode, LayerSpec, OptimizationProfile, TaskCategory, TaskProfile,
     WeightGenerator, WeightGeneratorError,
 };
 use nfc_tensor::{DType, Tensor, TensorShape};
+use std::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
 
@@ -21,6 +24,7 @@ pub struct LatentWeightGenerator {
     min_memory_bytes: u64,
     latent_dim: usize,
     checkpoint: Option<HyperCheckpoint>,
+    pager: Mutex<SkillPager>,
 }
 
 impl Default for LatentWeightGenerator {
@@ -29,6 +33,7 @@ impl Default for LatentWeightGenerator {
             min_memory_bytes: 16 * 1024 * 1024,
             latent_dim: LATENT_DIM,
             checkpoint: None,
+            pager: Mutex::new(SkillPager::from_bank(SkillCodebook::builtin())),
         }
     }
 }
@@ -43,8 +48,32 @@ impl LatentWeightGenerator {
         self
     }
 
+    pub fn with_codebook(self, codebook: SkillCodebook) -> Self {
+        Self {
+            min_memory_bytes: self.min_memory_bytes,
+            latent_dim: self.latent_dim,
+            checkpoint: self.checkpoint,
+            pager: Mutex::new(SkillPager::from_bank(codebook)),
+        }
+    }
+
+    pub fn with_pager_budget(self, max_resident_bytes: u64) -> Self {
+        let bank = self
+            .pager
+            .lock()
+            .unwrap_or_else(|e| e.into_inner())
+            .bank()
+            .clone();
+        Self {
+            min_memory_bytes: self.min_memory_bytes,
+            latent_dim: self.latent_dim,
+            checkpoint: self.checkpoint,
+            pager: Mutex::new(SkillPager::new(bank, max_resident_bytes)),
+        }
+    }
+
     pub fn from_env_checkpoint() -> Self {
-        let mut gen = Self::new();
+        let mut gen = Self::new().with_codebook(crate::codebook::load_or_builtin());
         if let Some(path) = crate::checkpoint::resolve_checkpoint_path() {
             match HyperCheckpoint::load(&path) {
                 Ok(ckpt) => {
@@ -63,6 +92,10 @@ impl LatentWeightGenerator {
         self.checkpoint.is_some()
     }
 
+    fn lock_pager(&self) -> std::sync::MutexGuard<'_, SkillPager> {
+        self.pager.lock().unwrap_or_else(|e| e.into_inner())
+    }
+
     fn target_claim_bytes(&self, task: &TaskProfile) -> Result<u64, WeightGeneratorError> {
         if task.memory_limit_bytes < self.min_memory_bytes {
             return Err(WeightGeneratorError::MemoryLimitTooLow {
@@ -76,6 +109,10 @@ impl LatentWeightGenerator {
     }
 
     pub fn encode_latent(&self, task: &TaskProfile) -> LatentCode {
+        self.encode_latent_with_hits(task).0
+    }
+
+    fn encode_latent_with_hits(&self, task: &TaskProfile) -> (LatentCode, Vec<String>) {
         let mut values = vec![0.0f32; self.latent_dim];
         let mut seed = fnv1a(task.domain.as_str().as_bytes());
         for skill in &task.skills {
@@ -101,23 +138,50 @@ impl LatentWeightGenerator {
             TaskCategory::Custom => values[5] += 0.35,
         }
 
-        let codebook = if self.checkpoint.is_some() {
-            format!("hypernet-toy-{}", task.domain.as_str())
+        let mut pager = self.lock_pager();
+        let (activated, residual) = pager.activate(&task.skills);
+        let n = values.len().min(residual.len());
+        for i in 0..n {
+            values[i] += residual[i];
+        }
+
+        let codebook_id = if activated.is_empty() {
+            if self.checkpoint.is_some() {
+                format!("hypernet-toy-{}", task.domain.as_str())
+            } else {
+                format!("latent-proto-{}", task.domain.as_str())
+            }
         } else {
-            format!("latent-proto-{}", task.domain.as_str())
+            format!("{}+{}", pager.bank().id, activated.join(","))
         };
 
-        LatentCode {
-            dim: self.latent_dim,
-            values,
-            codebook_id: codebook,
-        }
+        (
+            LatentCode {
+                dim: self.latent_dim,
+                values,
+                codebook_id,
+            },
+            activated,
+        )
     }
 
-    fn topology(latent: &LatentCode, claim_bytes: u64) -> (usize, usize, usize) {
+    fn topology(latent: &LatentCode, claim_bytes: u64, skill_hits: usize) -> (usize, usize, usize) {
         let energy: f32 = latent.values.iter().map(|v| v.abs()).sum::<f32>() / latent.dim as f32;
-        let hidden = ((64.0 + energy * 192.0) as usize).clamp(64, 256);
-        let depth = if energy > 0.55 { 3 } else { 2 };
+        // Dynamic subnetwork: more activated skills → slightly wider/deeper specialist
+        // (still capped by MAX_ALLOC_BYTES).
+        let skill_boost = (skill_hits as f32 * 24.0).min(96.0);
+        let hidden = ((48.0 + energy * 160.0 + skill_boost) as usize).clamp(48, 256);
+        let depth = match skill_hits {
+            0 => 2,
+            1..=2 => {
+                if energy > 0.6 {
+                    3
+                } else {
+                    2
+                }
+            }
+            _ => 3,
+        };
         let max_elems = (MAX_ALLOC_BYTES / 4).max(1024) as usize;
         let in_dim = (max_elems / (hidden * depth.max(1))).clamp(32, 128);
         let _ = claim_bytes;
@@ -186,12 +250,16 @@ impl WeightGenerator for LatentWeightGenerator {
 
     fn generate(&self, task: TaskProfile) -> Result<GeneratedModel, WeightGeneratorError> {
         let claim = self.target_claim_bytes(&task)?;
-        let latent = self.encode_latent(&task);
-        let (in_dim, hidden, depth) = Self::topology(&latent, claim);
+        let (latent, activated) = self.encode_latent_with_hits(&task);
+        let (in_dim, hidden, depth) = Self::topology(&latent, claim, activated.len());
+        let pager_stats = self.lock_pager().stats();
 
         info!(
             domain = task.domain.as_str(),
             latent_dim = latent.dim,
+            skill_hits = activated.len(),
+            hot_skills = pager_stats.hot_skills,
+            resident_bytes = pager_stats.resident_bytes,
             in_dim,
             hidden,
             depth,
@@ -234,12 +302,22 @@ impl WeightGenerator for LatentWeightGenerator {
         let notes = if self.checkpoint.is_some() {
             format!(
                 "Trained toy hypernetwork decode (checkpoint) — allocated {alloc_bytes} B; \
-                 claimed {claim} B. Still not an LLM."
+                 claimed {claim} B; skills_hit={}; hot={}/{} ({} B). Still not an LLM.",
+                activated.len(),
+                pager_stats.hot_skills,
+                pager_stats.bank_skills,
+                pager_stats.resident_bytes,
             )
         } else {
             format!(
-                "Phase 2 latent-proto — untrained deterministic hypernetwork stub \
-                 (allocated {alloc_bytes} B tensors; claimed {claim} B for budgeting)"
+                "Phase 3 paged codebook `{}` — hit {} skills, hot {}/{} ({} B / {} B cap) → \
+                 depth={depth} hidden={hidden} (allocated {alloc_bytes} B; claimed {claim} B)",
+                pager_stats.codebook_id,
+                activated.len(),
+                pager_stats.hot_skills,
+                pager_stats.bank_skills,
+                pager_stats.resident_bytes,
+                pager_stats.max_resident_bytes,
             )
         };
 
@@ -259,6 +337,18 @@ impl WeightGenerator for LatentWeightGenerator {
             },
             is_mock: false,
         })
+    }
+
+    fn optimize_pages(&self) -> u64 {
+        self.lock_pager().optimize()
+    }
+
+    fn resident_skill_bytes(&self) -> u64 {
+        self.lock_pager().resident_bytes()
+    }
+
+    fn pager_stats(&self) -> Option<PagerStats> {
+        Some(self.lock_pager().stats())
     }
 }
 
@@ -329,6 +419,12 @@ mod tests {
         assert!(model.weights.iter().any(|w| w.memory_bytes() > 0));
         assert!(model.weights.iter().any(|w| w.data.iter().any(|b| *b != 0)));
         assert!(model.name.contains("latent"));
+        assert!(
+            model.latent.codebook_id.contains("python")
+                || model.latent.codebook_id.contains("skill"),
+            "expected codebook activation, got {}",
+            model.latent.codebook_id
+        );
     }
 
     #[test]
@@ -346,5 +442,43 @@ mod tests {
         assert_eq!(a.latent.values, b.latent.values);
         assert_eq!(a.layers.len(), b.layers.len());
         assert_eq!(a.weights[0].data, b.weights[0].data);
+    }
+
+    #[test]
+    fn more_skills_grows_subnetwork() {
+        let gen = LatentWeightGenerator::new();
+        let slim = TaskProfile {
+            domain: TaskCategory::Coding,
+            skills: vec!["python".into()],
+            language: Some("python".into()),
+            memory_limit_bytes: 256 * 1024 * 1024,
+            raw_prompt: "python".into(),
+        };
+        let wide = TaskProfile {
+            domain: TaskCategory::Coding,
+            skills: vec![
+                "python".into(),
+                "debugging".into(),
+                "testing".into(),
+                "refactoring".into(),
+            ],
+            language: Some("python".into()),
+            memory_limit_bytes: 256 * 1024 * 1024,
+            raw_prompt: "python full".into(),
+        };
+        let a = gen.generate(slim).unwrap();
+        let b = gen.generate(wide).unwrap();
+        assert!(
+            b.layers.len() >= a.layers.len(),
+            "slim={} wide={}",
+            a.layers.len(),
+            b.layers.len()
+        );
+        let alloc_a: usize = a.weights.iter().map(|w| w.memory_bytes()).sum();
+        let alloc_b: usize = b.weights.iter().map(|w| w.memory_bytes()).sum();
+        assert!(
+            alloc_b >= alloc_a,
+            "expected wider specialist to allocate >= slim ({alloc_a} vs {alloc_b})"
+        );
     }
 }

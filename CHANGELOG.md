@@ -9,13 +9,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 3 skill codebook — compressed skill residuals + dynamic specialist topology + toy trainer + LRU skill pager (`NFCM_CODEBOOK_RAM_BYTES`)
+- Fixed-RAM eval suite (`run_suite` / `eval_generators`) — footprint, latent discrimination, probe energy
 - Phase 2 latent weight generator + latent-probe inference + brain artifact persist/reload
 - Toy hypernetwork train script + checkpoint loader (`NFCM_HYPERNET_CHECKPOINT`)
 - Desktop Settings (backend switch, GGUF import) + real-chat scripts for local llama.cpp
 - Project logo (`assets/logo/`, derived `branding/`) + Tauri & UI icons
 - Pluggable `InferenceBackend` trait (mock default, Candle feature, GGUF/llama.cpp)
 - Runtime snapshot field `inference_backend` + UI surface
-- Docs: `docs/inference-backends.md`, `docs/phase-2.md`
+- Docs: `docs/inference-backends.md`, `docs/phase-2.md`, `docs/phase-3.md`
 - CI: rustfmt, clippy (`-D warnings`), tests, smoke, frontend build + aggregate gate
 - Workflow: reject AI co-author / Generated-by commit trailers
 - Workflow: PR title + secret/large-file sanity checks
@@ -24,13 +26,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Desktop shell visual polish (Syne type, atmosphere, chat UX)
+- Desktop chat: Claude-like shimmer wait state, viewport-safe layout, IBM Plex Sans
 - GGUF backend: chat-template single-turn, prefer loaded model path over stale env
 
 ### Fixed
 
 - Tauri icons converted to RGBA (build panic)
 - Frontend production CSS build (Tailwind `@apply` / config incompat)
+- Inference UI freeze during long GGUF runs (spawn_blocking)
 
 ## [0.1.0] — 2026-08-04
 

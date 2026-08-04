@@ -148,7 +148,7 @@ flowchart LR
 | Runtime + desktop platform | Ready to explore |
 | Mock generator & inference | Working (labeled) |
 | Candle / GGUF adapters | Scaffold / env-driven |
-| Real hypernetwork compressor | Open research — latent-proto seam landed |
+| Real hypernetwork compressor | Open research — latent-proto + skill codebook seams landed |
 
 ---
 
@@ -170,6 +170,9 @@ flowchart LR
 | [Architecture](docs/architecture.md) | Design and seams |
 | [Inference backends](docs/inference-backends.md) | Mock / Candle / GGUF |
 | [Research roadmap](docs/research-notes.md) | Next scientific steps |
+| [Phase 2 — Latent](docs/phase-2.md) | Latent → tiny weights |
+| [Phase 3 — Codebook](docs/phase-3.md) | Skill residuals activated per task |
+| [Eval suite](docs/eval.md) | Fixed-RAM structural / discrimination metrics |
 | [Structure](docs/STRUCTURE.md) | Full file tree |
 | [Contributing](CONTRIBUTING.md) | How to help, PR / CI norms |
 | [Maintainer notes](docs/maintainer.md) | Branch protection, labels, Dependabot |

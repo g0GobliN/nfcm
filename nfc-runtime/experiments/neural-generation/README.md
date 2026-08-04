@@ -2,6 +2,29 @@
 
 Training / eval for weight generators. **Not** production LLM training.
 
+## Skill codebook (Phase 3)
+
+```text
+codebook/skill-v1.json              # deterministic defaults
+codebook/train_codebook.py          # toy contrastive trainer
+codebook/checkpoints/skill-trained-v1.json
+```
+
+Compressed skill residuals. The latent generator activates matching skills, blends them into `LatentCode`, and **scales subnetwork depth/width** by how many skills hit.
+
+```bash
+cd nfc-runtime/experiments/neural-generation/codebook
+python3 train_codebook.py
+# → checkpoints/skill-trained-v1.json (auto-picked if present)
+
+cd nfc-runtime
+NFCM_WEIGHT_GENERATOR=latent cargo run -p nfc-runtime --example eval_generators
+```
+
+Override: `NFCM_CODEBOOK=/path/to.json`
+
+See [docs/phase-3.md](../../../docs/phase-3.md).
+
 ## Hypernetwork (toy)
 
 ```bash

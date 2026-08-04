@@ -149,6 +149,10 @@ impl RuntimeEngine {
 
         let backend = create_backend(config.backend_kind);
         let generator = create_generator(config.generator_kind);
+        if let Some(stats) = generator.pager_stats() {
+            let reserve = stats.max_resident_bytes.max(256);
+            let _ = memory.allocate("skill-codebook-hot", ComponentKind::Codebook, reserve);
+        }
         let mut inner = Inner {
             status: RuntimeStatus::Running,
             registry,
@@ -404,6 +408,15 @@ impl RuntimeEngine {
             Self::load_generated_locked(&mut inner, model.clone(), generated)?;
         }
 
+        let resident = inner.generator.resident_skill_bytes();
+        let _ = inner.memory.set_codebook_bytes(resident);
+        if let Some(stats) = inner.generator.pager_stats() {
+            inner.console(format!(
+                "Codebook pager: hot {}/{} ({} B)",
+                stats.hot_skills, stats.bank_skills, stats.resident_bytes
+            ));
+        }
+
         inner.status = RuntimeStatus::Running;
         inner.console("Ready.");
         Ok(model)
@@ -460,8 +473,20 @@ impl RuntimeEngine {
 
     pub fn optimize_memory(&self) -> Result<u64, RuntimeError> {
         let mut inner = self.inner.lock();
-        let freed = inner.memory.optimize();
-        inner.log(format!("optimize_memory freed {freed} bytes"));
+        let page_freed = inner.generator.optimize_pages();
+        let resident = inner.generator.resident_skill_bytes();
+        let _ = inner.memory.set_codebook_bytes(resident);
+        let mem_freed = inner.memory.optimize();
+        let freed = page_freed + mem_freed;
+        inner.log(format!(
+            "optimize_memory freed {freed} bytes (pager={page_freed}, soft={mem_freed})"
+        ));
+        if let Some(stats) = inner.generator.pager_stats() {
+            inner.console(format!(
+                "Codebook hot {}/{} skills ({} B)",
+                stats.hot_skills, stats.bank_skills, stats.resident_bytes
+            ));
+        }
         inner.console(format!("Optimized memory (freed {freed} bytes)"));
         Ok(freed)
     }

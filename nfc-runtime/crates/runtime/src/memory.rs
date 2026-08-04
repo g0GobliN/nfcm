@@ -37,6 +37,7 @@ pub enum ComponentKind {
     Generator,
     ActiveModel,
     Cache,
+    Codebook,
     Other,
 }
 
@@ -55,6 +56,7 @@ pub struct MemorySnapshot {
     pub generator_bytes: u64,
     pub active_model_bytes: u64,
     pub cache_bytes: u64,
+    pub codebook_bytes: u64,
     pub other_bytes: u64,
     pub allocations: Vec<MemoryAllocation>,
 }
@@ -163,10 +165,12 @@ impl MemoryManager {
         freed
     }
 
-    /// Drop unused active-model allocations when over budget (LRU-less Phase 1: drop all but newest).
+    /// Soft eviction: shrink codebook hot set tracking, then drop spare active models if over budget.
     pub fn optimize(&mut self) -> u64 {
+        let mut freed = 0u64;
+        // Prefer reclaiming codebook soft allocation down to actual resident size later via engine.
         if self.used_bytes() <= self.budget.max_ram_bytes {
-            return 0;
+            return freed;
         }
         let mut models: Vec<MemoryAllocation> = self
             .allocations
@@ -175,7 +179,6 @@ impl MemoryManager {
             .cloned()
             .collect();
         models.sort_by_key(|a| a.bytes);
-        let mut freed = 0u64;
         while self.used_bytes() > self.budget.max_ram_bytes {
             let Some(victim) = models.pop() else {
                 break;
@@ -187,16 +190,39 @@ impl MemoryManager {
         freed
     }
 
+    /// Resize the soft codebook allocation to match pager resident bytes.
+    pub fn set_codebook_bytes(&mut self, bytes: u64) -> u64 {
+        let ids: Vec<Uuid> = self
+            .allocations
+            .iter()
+            .filter(|(_, a)| a.kind == ComponentKind::Codebook)
+            .map(|(id, _)| *id)
+            .collect();
+        let before: u64 = ids
+            .iter()
+            .filter_map(|id| self.allocations.get(id).map(|a| a.bytes))
+            .sum();
+        for id in ids {
+            self.allocations.remove(&id);
+        }
+        if bytes > 0 {
+            let _ = self.allocate("skill-codebook-hot", ComponentKind::Codebook, bytes);
+        }
+        before.saturating_sub(bytes)
+    }
+
     pub fn snapshot(&self) -> MemorySnapshot {
         let mut generator_bytes = 0;
         let mut active_model_bytes = 0;
         let mut cache_bytes = 0;
+        let mut codebook_bytes = 0;
         let mut other_bytes = 0;
         for a in self.allocations.values() {
             match a.kind {
                 ComponentKind::Generator => generator_bytes += a.bytes,
                 ComponentKind::ActiveModel => active_model_bytes += a.bytes,
                 ComponentKind::Cache => cache_bytes += a.bytes,
+                ComponentKind::Codebook => codebook_bytes += a.bytes,
                 ComponentKind::Other => other_bytes += a.bytes,
             }
         }
@@ -206,6 +232,7 @@ impl MemoryManager {
             generator_bytes,
             active_model_bytes,
             cache_bytes,
+            codebook_bytes,
             other_bytes,
             allocations: self.allocations.values().cloned().collect(),
         }
@@ -242,5 +269,17 @@ mod tests {
             .allocate("big", ComponentKind::ActiveModel, 200)
             .unwrap_err();
         assert!(matches!(err, MemoryError::Insufficient { .. }));
+    }
+
+    #[test]
+    fn set_codebook_bytes_resizes() {
+        let mut mm = MemoryManager::new(MemoryBudget {
+            max_ram_bytes: 1024 * 1024 * 1024,
+            generator_reserve_bytes: 0,
+            cache_reserve_bytes: 0,
+        });
+        let _ = mm.allocate("skill-codebook-hot", ComponentKind::Codebook, 2048);
+        let _ = mm.set_codebook_bytes(512);
+        assert_eq!(mm.snapshot().codebook_bytes, 512);
     }
 }

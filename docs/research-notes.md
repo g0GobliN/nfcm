@@ -1,6 +1,6 @@
 # Research roadmap
 
-Phase 1 built the **runtime platform**. Phase 2 adds a **latent → weights** prototype.
+Phase 1 built the **runtime platform**. Phase 2 adds a **latent → weights** prototype. Phase 3 starts the **skill codebook**.
 
 ## Done / in progress
 
@@ -9,14 +9,14 @@ Phase 1 built the **runtime platform**. Phase 2 adds a **latent → weights** pr
 3. **Persist + reload** — full `{id}.nfcm.json` artifacts with tensors.
 4. **Toy hypernetwork** — `experiments/.../hypernetwork/train_toy.py` → `toy-v1.json` checkpoint.
 5. **Desktop Settings** — switch backend + import GGUF path.
+6. **Skill codebook (Phase 3)** — see [phase-3.md](phase-3.md): compressed skill residuals, dynamic topology, toy trainer, LRU pager.
 
 ## Near-term
 
-1. **Real hypernetwork losses** — replace teacher-mimic with task metrics.
-2. **Compressed knowledge store** — codebook / residual vectors on disk; activate slices per task.
-3. **Dynamic subnetworks** — generate only layers needed for the compiled skill set.
-4. **Memory scheduler** — page latent blocks; unload cold skills under RAM pressure.
-5. **Eval harness** — expand `eval_generators` with task-suite quality metrics at fixed RAM.
+1. **Trained codebook residuals** — replace hash synth with richer task-loss embeddings.
+2. **Real hypernetwork losses** — replace teacher-mimic with task metrics.
+3. **Dynamic subnetworks** — further specialize layers beyond depth/width scaling.
+4. **Eval harness** — see [eval.md](eval.md): fixed-RAM footprint, latent discrimination, probe energy.
 
 ## Non-goals (yet)
 
