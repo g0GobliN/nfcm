@@ -1,9 +1,9 @@
-//! Latent-probe inference — runs a tiny CPU forward pass on Phase 2 tensors.
+//! Latent decode inference — forward pass on TARC tensors + greedy text decode.
 //!
-//! Not an LLM. Uses real generated weights to score prompt activations and
-//! emit an honest, inspectable response (skill routing / energy). Proves the
-//! generator → inference seam end-to-end.
+//! Not an LLM. Emits real decoded tokens from activations over a fixed vocab,
+//! plus a short diagnostic footer.
 
+use super::decode::decode_tokens;
 use super::{
     BackendCapabilities, BackendId, InferenceBackend, InferenceError, InferenceRequest,
     InferenceResponse, ModelContext,
@@ -127,7 +127,7 @@ impl InferenceBackend for LatentProbeBackend {
     }
 
     fn name(&self) -> &str {
-        "latent-probe-v1"
+        "latent-decode-v1"
     }
 
     fn is_mock(&self) -> bool {
@@ -138,15 +138,14 @@ impl InferenceBackend for LatentProbeBackend {
         BackendCapabilities {
             always_available: true,
             loads_external_weights: true,
-            notes: "Tiny CPU forward on Phase 2 latent tensors — activation probe, not an LLM."
-                .into(),
+            notes: "TARC forward + greedy fixed-vocab decode — not a trained LLM.".into(),
         }
     }
 
     fn attach(&mut self, ctx: &ModelContext) -> Result<(), InferenceError> {
         if ctx.weights.is_empty() {
             return Err(InferenceError::NotConfigured(
-                "latent-probe needs GeneratedModel weights (use NFCM_WEIGHT_GENERATOR=latent)"
+                "latent-decode needs GeneratedModel weights (use NFCM_WEIGHT_GENERATOR=latent)"
                     .into(),
             ));
         }
@@ -178,8 +177,16 @@ impl InferenceBackend for LatentProbeBackend {
         let (acts, energy) = Self::forward(&spec.matrices, &request.prompt);
         let tokens_in = request.prompt.split_whitespace().count() as u32;
 
-        let mut skill_lines = Vec::new();
-        for (i, skill) in spec.skills.iter().enumerate() {
+        let decoded = decode_tokens(
+            &acts,
+            &spec.latent,
+            &spec.skills,
+            &request.prompt,
+            request.max_tokens as usize,
+        );
+
+        let mut skill_bits = Vec::new();
+        for (i, skill) in spec.skills.iter().enumerate().take(6) {
             let score = if spec.latent.is_empty() || acts.is_empty() {
                 0.0
             } else {
@@ -187,37 +194,25 @@ impl InferenceBackend for LatentProbeBackend {
                 let b = acts[i % acts.len()].abs();
                 (a * 0.5 + b * 0.5).min(1.0)
             };
-            skill_lines.push(format!("  - {skill}: {score:.3}"));
+            skill_bits.push(format!("{skill}={score:.2}"));
         }
 
-        let top_k = 8.min(acts.len());
-        let mut indexed: Vec<(usize, f32)> = acts.iter().copied().enumerate().collect();
-        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
-        let top: Vec<String> = indexed
-            .into_iter()
-            .take(top_k)
-            .map(|(i, v)| format!("h{i}={v:.4}"))
-            .collect();
-
         let text = format!(
-            "[NFCM latent-probe — uses real tensors; NOT a trained LLM]\n\
-             Brain: {}\n\
-             Layers: {} · activation_energy={energy:.4}\n\
-             Skill affinity:\n{}\n\
-             Top activations: {}\n\
-             Prompt tokens: {tokens_in}\n\
-             Next: replace probe with trained decode / Candle.",
+            "{decoded}\n\n\
+             —\n\
+             [NFCM latent-decode · NOT a trained LLM]\n\
+             Brain: {} · energy={energy:.3} · layers={}\n\
+             Skills: {}",
             spec.model_name,
             spec.matrices.len(),
-            if skill_lines.is_empty() {
-                "  (none)".into()
+            if skill_bits.is_empty() {
+                "(none)".into()
             } else {
-                skill_lines.join("\n")
-            },
-            top.join(", ")
+                skill_bits.join(", ")
+            }
         );
 
-        let tokens_out = text.split_whitespace().count() as u32;
+        let tokens_out = decoded.split_whitespace().count() as u32;
         Ok(InferenceResponse {
             model_id: spec.model_id,
             model_name: spec.model_name.clone(),
@@ -271,12 +266,14 @@ mod tests {
         let resp = backend
             .infer(&InferenceRequest {
                 prompt: "fix my rust borrow checker error".into(),
-                max_tokens: 256,
+                max_tokens: 32,
             })
             .unwrap();
         assert!(!resp.is_mock);
-        assert!(resp.text.contains("latent-probe"));
-        assert!(resp.text.contains("Skill affinity"));
+        assert_eq!(resp.backend, "latent-decode-v1");
+        assert!(resp.text.contains("latent-decode"));
+        let main = resp.text.split("\n\n—").next().unwrap_or("");
+        assert!(main.split_whitespace().count() >= 4);
     }
 
     #[test]

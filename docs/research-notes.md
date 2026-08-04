@@ -16,7 +16,7 @@ See [METHOD.md](../nfc-runtime/experiments/neural-generation/METHOD.md).
 ## Next research (harder)
 
 1. Scale residuals / hypernet beyond toy dims with real corpora  
-2. Decode path that produces usable text (not just probe energy)  
+2. Train the decode vocab / head (replace fixed 128-word greedy decode)  
 3. Beat a small open GGUF on a **private** task suite at fixed RAM  
 
 When (3) succeeds and you want product IP → **keep that checkpoint private**; keep the engine open.

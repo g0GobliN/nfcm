@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Phase 3 skill codebook — compressed skill residuals + dynamic specialist topology + toy trainer + LRU skill pager (`NFCM_CODEBOOK_RAM_BYTES`)
 - Fixed-RAM eval suite (`run_suite` / `eval_generators`) — footprint, latent discrimination, probe energy
 - TARC research loop — task-loss codebook + task-metric hypernet trainers (`METHOD.md`)
+- Latent text decode — greedy fixed-vocab tokens from TARC activations (`latent-decode-v1`)
 - Phase 2 latent weight generator + latent-probe inference + brain artifact persist/reload
 - Toy hypernetwork train script + checkpoint loader (`NFCM_HYPERNET_CHECKPOINT`)
 - Desktop Settings (backend switch, GGUF import) + real-chat scripts for local llama.cpp

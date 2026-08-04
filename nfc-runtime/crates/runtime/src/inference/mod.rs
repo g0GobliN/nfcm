@@ -6,6 +6,7 @@
 //! Phase 2 adds [`LatentProbeBackend`] for a tiny CPU pass on generated tensors.
 
 mod candle_backend;
+mod decode;
 mod gguf;
 mod latent_probe;
 mod mock;

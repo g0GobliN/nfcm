@@ -729,7 +729,7 @@ mod tests {
         let _model = engine.compile_brain(profile, true, |_| {}).unwrap();
         let snap = engine.snapshot().unwrap();
         assert!(!snap.inference_backend.is_mock);
-        assert_eq!(snap.inference_backend.name, "latent-probe-v1");
+        assert_eq!(snap.inference_backend.name, "latent-decode-v1");
 
         let resp = engine
             .run_inference(InferenceRequest {
@@ -738,9 +738,8 @@ mod tests {
             })
             .unwrap();
         assert!(!resp.is_mock);
-        assert_eq!(resp.backend, "latent-probe-v1");
-        assert!(resp.text.contains("latent-probe"));
-        assert!(resp.text.contains("Skill affinity"));
+        assert_eq!(resp.backend, "latent-decode-v1");
+        assert!(resp.text.contains("latent-decode"));
     }
 
     #[test]
@@ -764,7 +763,7 @@ mod tests {
             })
             .unwrap();
         assert!(!resp.is_mock);
-        assert!(resp.text.contains("latent-probe"));
+        assert!(resp.text.contains("latent-decode"));
     }
 
     #[test]
