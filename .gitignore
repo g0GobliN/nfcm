@@ -9,6 +9,10 @@
 nfcm-data/
 *.sqlite
 
+# Python
+**/__pycache__/
+*.py[cod]
+
 # Rust
 **/target/
 nfc-runtime/target/

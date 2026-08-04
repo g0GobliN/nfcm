@@ -1,24 +1,223 @@
 //! Tiny text decode from latent activations.
 //!
 //! Maps the final activation vector onto a fixed 128-word vocabulary and
-//! greedily emits tokens. Uses real tensors from the forward pass — still
-//! **not** a trained LLM.
+//! greedily emits tokens. Optional trained linear head (`decode-v2.json`) via
+//! `NFCM_DECODE_HEAD`. Still **not** a trained LLM.
+
+use serde::Deserialize;
+use std::path::PathBuf;
+use std::sync::OnceLock;
 
 /// Fixed vocab (index = logit slot). Length must stay 128.
 pub const VOCAB: [&str; 128] = [
-    "the", "a", "to", "of", "and", "in", "for", "is", "on", "with", "this", "that", "you", "it",
-    "as", "be", "are", "from", "or", "at", "by", "an", "we", "can", "will", "use", "code",
-    "function", "error", "fix", "check", "try", "return", "value", "type", "data", "model",
-    "local", "memory", "skill", "task", "step", "first", "then", "next", "also", "here", "need",
-    "help", "please", "sure", "python", "rust", "debug", "test", "math", "proof", "write",
-    "research", "summary", "medical", "note", "input", "output", "layer", "weight", "latent",
-    "compile", "brain", "specialist", "budget", "ram", "device", "safe", "clear", "simple",
-    "example", "pattern", "logic", "plan", "answer", "question", "why", "how", "what", "when",
-    "where", "because", "so", "if", "else", "true", "false", "null", "list", "map", "set", "loop",
-    "call", "run", "build", "load", "save", "open", "read", "parse", "print", "log", "ok", "done",
-    "start", "end", "high", "low", "more", "less", "good", "maybe", "token", "decode", "probe",
-    "nfcm", "tarc", "hello", "world", "thanks", "path", "file",
+    "the",
+    "a",
+    "to",
+    "of",
+    "and",
+    "in",
+    "for",
+    "is",
+    "on",
+    "with",
+    "this",
+    "that",
+    "you",
+    "it",
+    "as",
+    "be",
+    "are",
+    "from",
+    "or",
+    "at",
+    "by",
+    "an",
+    "we",
+    "can",
+    "will",
+    "use",
+    "code",
+    "function",
+    "error",
+    "fix",
+    "check",
+    "try",
+    "return",
+    "value",
+    "type",
+    "data",
+    "model",
+    "local",
+    "memory",
+    "skill",
+    "task",
+    "step",
+    "first",
+    "then",
+    "next",
+    "also",
+    "here",
+    "need",
+    "help",
+    "please",
+    "sure",
+    "python",
+    "rust",
+    "debug",
+    "test",
+    "math",
+    "proof",
+    "write",
+    "research",
+    "summary",
+    "medical",
+    "note",
+    "input",
+    "output",
+    "layer",
+    "weight",
+    "latent",
+    "compile",
+    "brain",
+    "specialist",
+    "budget",
+    "ram",
+    "device",
+    "safe",
+    "clear",
+    "simple",
+    "example",
+    "pattern",
+    "logic",
+    "plan",
+    "answer",
+    "question",
+    "why",
+    "how",
+    "what",
+    "when",
+    "where",
+    "because",
+    "so",
+    "if",
+    "else",
+    "true",
+    "false",
+    "null",
+    "list",
+    "map",
+    "set",
+    "loop",
+    "call",
+    "run",
+    "build",
+    "load",
+    "save",
+    "open",
+    "read",
+    "parse",
+    "print",
+    "log",
+    "ok",
+    "done",
+    "start",
+    "end",
+    "high",
+    "low",
+    "more",
+    "less",
+    "good",
+    "maybe",
+    "token",
+    "decode",
+    "probe",
+    "nfcm",
+    "tarc",
+    "hello",
+    "world",
+    "thanks",
+    "path",
+    "file",
 ];
+
+#[derive(Debug, Deserialize)]
+struct DecodeHeadFile {
+    version: u32,
+    dim: usize,
+    e: Vec<f32>,
+}
+
+struct DecodeHead {
+    dim: usize,
+    /// Row-major [vocab × dim]
+    e: Vec<f32>,
+}
+
+impl DecodeHead {
+    fn project(&self, state: &[f32]) -> Vec<f32> {
+        let n = VOCAB.len();
+        let mut logits = vec![0.0f32; n];
+        for (r, logit) in logits.iter_mut().enumerate() {
+            let mut s = 0.0f32;
+            for c in 0..self.dim {
+                let x = state.get(c).copied().unwrap_or(0.0);
+                s += self.e[r * self.dim + c] * x;
+            }
+            *logit = s;
+        }
+        logits
+    }
+}
+
+fn resolve_decode_head_path() -> Option<PathBuf> {
+    if let Ok(p) = std::env::var("NFCM_DECODE_HEAD") {
+        let pb = PathBuf::from(p);
+        if pb.is_file() {
+            return Some(pb);
+        }
+    }
+    let mut dir = std::env::current_dir().ok()?;
+    for _ in 0..8 {
+        for rel in [
+            "experiments/neural-generation/decode/checkpoints/decode-v2.json",
+            "nfc-runtime/experiments/neural-generation/decode/checkpoints/decode-v2.json",
+            "experiments/neural-generation/decode/checkpoints/decode-v1.json",
+            "nfc-runtime/experiments/neural-generation/decode/checkpoints/decode-v1.json",
+        ] {
+            let c = dir.join(rel);
+            if c.is_file() {
+                return Some(c);
+            }
+        }
+        if !dir.pop() {
+            break;
+        }
+    }
+    None
+}
+
+fn load_decode_head() -> Option<DecodeHead> {
+    let path = resolve_decode_head_path()?;
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let file: DecodeHeadFile = serde_json::from_str(&raw).ok()?;
+    if file.version != 1 || file.dim == 0 || file.e.len() != VOCAB.len() * file.dim {
+        tracing::warn!(
+            path = %path.display(),
+            "decode head invalid; using identity logits"
+        );
+        return None;
+    }
+    tracing::info!(path = %path.display(), dim = file.dim, "loaded decode head");
+    Some(DecodeHead {
+        dim: file.dim,
+        e: file.e,
+    })
+}
+
+fn decode_head() -> Option<&'static DecodeHead> {
+    static HEAD: OnceLock<Option<DecodeHead>> = OnceLock::new();
+    HEAD.get_or_init(load_decode_head).as_ref()
+}
 
 fn softmax_argmax(logits: &[f32]) -> usize {
     let mut best_i = 0usize;
@@ -53,10 +252,7 @@ pub fn decode_tokens(
         state.resize(n, 0.0);
     }
     for (i, s) in state.iter_mut().enumerate() {
-        let lv = latent
-            .get(i % latent.len().max(1))
-            .copied()
-            .unwrap_or(0.0);
+        let lv = latent.get(i % latent.len().max(1)).copied().unwrap_or(0.0);
         *s += 0.15 * lv;
     }
     for (si, skill) in skills.iter().enumerate() {
@@ -72,10 +268,17 @@ pub fn decode_tokens(
     let max_tokens = max_tokens.clamp(4, 64);
     let mut out = Vec::with_capacity(max_tokens);
     let mut prev = None::<usize>;
+    let head = decode_head();
     for _ in 0..max_tokens {
-        let mut logits = state.clone();
+        let mut logits = if let Some(h) = head {
+            h.project(&state)
+        } else {
+            state.clone()
+        };
         if let Some(p) = prev {
-            logits[p] -= 1.5;
+            if p < logits.len() {
+                logits[p] -= 1.5;
+            }
         }
         let i = softmax_argmax(&logits);
         let word = VOCAB[i];

@@ -4,11 +4,16 @@
 
 Training / eval for weight generators. **Not** production LLM training.
 
+Runtime auto-loads `skill-task-v2` + `task-v2` + `decode-v2` (fallbacks v1) when present
+(override with `NFCM_CODEBOOK` / `NFCM_HYPERNET_CHECKPOINT` / `NFCM_DECODE_HEAD`).
+
+Shared toy corpus: `corpus/docs.json` (domain docs → co-occur + in-vocab decode phrases).
+
 ## Skill codebook (Phase 3 / TARC)
 
 ```bash
 cd codebook
-python3 train_task_loss.py    # → checkpoints/skill-task-v1.json  (preferred)
+python3 train_task_loss.py    # → checkpoints/skill-task-v2.json  (preferred)
 python3 train_codebook.py     # older margin-only toy
 ```
 
@@ -16,7 +21,7 @@ python3 train_codebook.py     # older margin-only toy
 
 ```bash
 cd hypernetwork
-python3 train_task.py         # → checkpoints/task-v1.json  (preferred, task metrics)
+python3 train_task.py         # → checkpoints/task-v2.json  (preferred, dim=128)
 python3 train_toy.py          # older teacher-mimic
 ```
 
@@ -28,4 +33,9 @@ cd nfc-runtime
 # results also under results/tarc-latest.json after a local capture
 ```
 
-Runtime auto-loads `skill-task-v1` + `task-v1` when present (override with `NFCM_CODEBOOK` / `NFCM_HYPERNET_CHECKPOINT`).
+## Decode head
+
+```bash
+cd decode
+python3 train_decode.py   # → checkpoints/decode-v2.json  (phrase / next-word)
+```

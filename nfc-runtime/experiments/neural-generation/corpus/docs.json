@@ -1,0 +1,92 @@
+[
+  {
+    "domain": "coding",
+    "skills": ["python", "debugging", "testing", "api"],
+    "text": "debug the python api then run the testing suite until the error is clear"
+  },
+  {
+    "domain": "coding",
+    "skills": ["rust", "memory", "concurrency", "cli"],
+    "text": "build a rust cli with safe memory use and simple concurrency"
+  },
+  {
+    "domain": "coding",
+    "skills": ["typescript", "javascript", "parsing", "types"],
+    "text": "parse typescript and javascript input with clear types and return the value"
+  },
+  {
+    "domain": "coding",
+    "skills": ["algorithms", "refactoring", "logging"],
+    "text": "refactor the algorithms code and add logging for each step"
+  },
+  {
+    "domain": "coding",
+    "skills": ["async", "api", "logging"],
+    "text": "use async api calls and log each output for the local device"
+  },
+  {
+    "domain": "math",
+    "skills": ["math", "proofs", "logic"],
+    "text": "use math logic for the proof and check if the value is true or false"
+  },
+  {
+    "domain": "math",
+    "skills": ["calculus", "optimization", "numerics"],
+    "text": "use calculus and numerics for the optimization of the model weight"
+  },
+  {
+    "domain": "math",
+    "skills": ["statistics", "probability", "analysis"],
+    "text": "use statistics and probability for analysis of the data"
+  },
+  {
+    "domain": "math",
+    "skills": ["linear-algebra", "numerics", "math"],
+    "text": "apply linear-algebra and numerics to the math model"
+  },
+  {
+    "domain": "writing",
+    "skills": ["writing", "clarity", "editing"],
+    "text": "write a clear and simple note then editing for clarity"
+  },
+  {
+    "domain": "writing",
+    "skills": ["outline", "docs", "summarization"],
+    "text": "first write an outline then a summary for the docs"
+  },
+  {
+    "domain": "writing",
+    "skills": ["writing", "summarization", "docs"],
+    "text": "write a summary of the docs in clear simple form"
+  },
+  {
+    "domain": "research",
+    "skills": ["research", "literature", "citation"],
+    "text": "research the literature and save a citation note"
+  },
+  {
+    "domain": "research",
+    "skills": ["hypothesis", "experiment", "analysis"],
+    "text": "plan the hypothesis then run the experiment and analysis"
+  },
+  {
+    "domain": "research",
+    "skills": ["research", "summarization", "data"],
+    "text": "research the data and write a summary for the plan"
+  },
+  {
+    "domain": "medical",
+    "skills": ["medical", "safety", "notes"],
+    "text": "check the medical note and be safe with the data"
+  },
+  {
+    "domain": "medical",
+    "skills": ["triage", "symptoms", "safety"],
+    "text": "triage the symptoms and keep a safe medical note"
+  },
+  {
+    "domain": "medical",
+    "skills": ["medical", "dosage", "notes"],
+    "text": "read the medical dosage note and check what is safe"
+  }
+]

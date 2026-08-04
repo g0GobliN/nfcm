@@ -17,7 +17,7 @@ use std::sync::Mutex;
 use tracing::info;
 use uuid::Uuid;
 
-const LATENT_DIM: usize = 64;
+const LATENT_DIM: usize = 128;
 const MAX_ALLOC_BYTES: u64 = 4 * 1024 * 1024;
 
 pub struct LatentWeightGenerator {
@@ -74,10 +74,18 @@ impl LatentWeightGenerator {
 
     pub fn from_env_checkpoint() -> Self {
         let mut gen = Self::new().with_codebook(crate::codebook::load_or_builtin());
+        // Align latent width to loaded codebook when larger than default.
+        {
+            let bank_dim = gen.lock_pager().bank().dim;
+            if bank_dim > 0 {
+                gen.latent_dim = bank_dim.max(gen.latent_dim);
+            }
+        }
         if let Some(path) = crate::checkpoint::resolve_checkpoint_path() {
             match HyperCheckpoint::load(&path) {
                 Ok(ckpt) => {
                     info!(path = %path.display(), "loaded hypernetwork checkpoint");
+                    gen.latent_dim = ckpt.latent_dim.max(gen.latent_dim);
                     gen.checkpoint = Some(ckpt);
                 }
                 Err(e) => {
@@ -414,7 +422,7 @@ mod tests {
         };
         let model = gen.generate(task).unwrap();
         assert!(!model.is_mock);
-        assert_eq!(model.latent.dim, 64);
+        assert_eq!(model.latent.dim, 128);
         assert!(!model.weights.is_empty());
         assert!(model.weights.iter().any(|w| w.memory_bytes() > 0));
         assert!(model.weights.iter().any(|w| w.data.iter().any(|b| *b != 0)));

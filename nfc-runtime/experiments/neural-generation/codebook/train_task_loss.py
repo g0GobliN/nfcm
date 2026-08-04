@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
-"""NFCM TARC — task-loss skill codebook trainer.
+"""NFCM TARC — task-loss skill codebook trainer (scaled v2).
 
 Owns three losses (numpy SGD, no PyTorch):
   L_domain  — sum of skill vectors predicts domain one-hot
-  L_pair    — co-occurring skills reconstruct each other (linear)
+  L_pair    — co-occurring skills reconstruct each other
   L_margin  — same-domain cosine high, cross-domain below margin
 
-Writes checkpoints/skill-task-v1.json (SkillCodebook JSON).
+Corpus: expanded skill bank + short co-occurrence phrases (toy text).
+
+Writes checkpoints/skill-task-v2.json (SkillCodebook JSON).
 
 Usage:
   python3 train_task_loss.py
@@ -19,15 +21,16 @@ from pathlib import Path
 
 import numpy as np
 
-DIM = 64
-STEPS = 4000
-LR = 0.04
+DIM = 128
+STEPS = 8000
+LR = 0.035
 SEED = 42
-MARGIN = 0.15
+MARGIN = 0.12
 W_DOMAIN = 1.0
-W_PAIR = 0.5
+W_PAIR = 0.6
 W_MARGIN = 1.0
 
+# Expanded skill bank (still toy — not a foundation corpus)
 BUNDLES: dict[str, list[str]] = {
     "coding": [
         "python",
@@ -38,14 +41,70 @@ BUNDLES: dict[str, list[str]] = {
         "testing",
         "refactoring",
         "algorithms",
+        "api",
+        "cli",
+        "async",
+        "parsing",
+        "logging",
+        "memory",
+        "concurrency",
+        "types",
     ],
-    "math": ["math", "calculus", "statistics"],
-    "writing": ["writing", "summarization"],
-    "research": ["research", "summarization"],
-    "medical": ["medical"],
+    "math": [
+        "math",
+        "calculus",
+        "statistics",
+        "linear-algebra",
+        "probability",
+        "optimization",
+        "proofs",
+        "numerics",
+    ],
+    "writing": [
+        "writing",
+        "summarization",
+        "editing",
+        "outline",
+        "clarity",
+        "docs",
+    ],
+    "research": [
+        "research",
+        "summarization",
+        "literature",
+        "hypothesis",
+        "experiment",
+        "citation",
+        "analysis",
+    ],
+    "medical": [
+        "medical",
+        "triage",
+        "notes",
+        "safety",
+        "symptoms",
+        "dosage",
+    ],
 }
 
 DOMAINS = list(BUNDLES.keys())
+CORPUS_PATH = Path(__file__).resolve().parent.parent / "corpus" / "docs.json"
+
+
+def load_corpus_cooccur() -> list[list[str]]:
+    """Skill co-occurrence lists from the shared corpus docs."""
+    raw = json.loads(CORPUS_PATH.read_text())
+    out: list[list[str]] = []
+    for doc in raw:
+        skills = [s for s in doc.get("skills", []) if isinstance(s, str)]
+        if len(skills) >= 2:
+            out.append(skills)
+    if not out:
+        raise SystemExit(f"corpus empty or missing skills: {CORPUS_PATH}")
+    return out
+
+
+COOCCUR = load_corpus_cooccur()
 
 
 def all_skills() -> list[str]:
@@ -80,54 +139,54 @@ def main() -> None:
     for i in range(len(skills)):
         vecs[i] = l2n(vecs[i])
 
-    # Domain classifier W: [n_domains, DIM]
     W = rng.normal(0, 0.05, (len(DOMAINS), DIM)).astype(np.float32)
-
     hist: list[float] = []
 
     for step in range(STEPS):
         d = DOMAINS[step % len(DOMAINS)]
         bundle = BUNDLES[d]
-        # Sample 1–3 skills from domain
-        k = int(rng.integers(1, min(3, len(bundle)) + 1))
+        k = int(rng.integers(1, min(4, len(bundle)) + 1))
         chosen = list(rng.choice(bundle, size=k, replace=False))
         ids = [idx[s] for s in chosen]
         z = np.sum(vecs[ids], axis=0).astype(np.float32)
 
-        # --- domain loss ---
         logits = W @ z
         probs = softmax(logits)
         y = DOMAINS.index(d)
         loss_domain = float(-np.log(probs[y] + 1e-8))
-        # dL/dlogits
         dlogits = probs.copy()
         dlogits[y] -= 1.0
         g_W = np.outer(dlogits, z).astype(np.float32)
         g_z_domain = (W.T @ dlogits).astype(np.float32)
 
-        # --- pair reconstruction (if >=2 skills) ---
         loss_pair = 0.0
         g_vecs_pair = {i: np.zeros(DIM, dtype=np.float32) for i in ids}
-        if len(ids) >= 2:
+        # Prefer corpus co-occurrence when available
+        if step % 2 == 0 and COOCCUR:
+            phrase = COOCCUR[step % len(COOCCUR)]
+            phrase = [s for s in phrase if s in idx]
+            if len(phrase) >= 2:
+                a, b = idx[phrase[0]], idx[phrase[1]]
+                err = vecs[a] - vecs[b]
+                loss_pair = float(np.mean(err * err))
+                g = (2.0 / DIM) * err
+                g_vecs_pair = {a: g, b: -g}
+                ids = list({a, b} | set(ids))
+        elif len(ids) >= 2:
             a, b = ids[0], ids[1]
-            # predict b from a via shared W_pair = I (use cosine to target direction)
-            pred = vecs[a]
-            tgt = vecs[b]
-            err = pred - tgt
+            err = vecs[a] - vecs[b]
             loss_pair = float(np.mean(err * err))
             g = (2.0 / DIM) * err
             g_vecs_pair[a] += g
             g_vecs_pair[b] -= g
 
-        # --- margin contrastive ---
         a_s = chosen[0]
         ia = idx[a_s]
-        # positive
         pos_cands = [s for s in bundle if s != a_s] or [a_s]
-        b_s = rng.choice(pos_cands)
+        b_s = str(rng.choice(pos_cands))
         ib = idx[b_s]
         neg_cands = [s for s in skills if skill_domain[s] != d]
-        n_s = rng.choice(neg_cands)
+        n_s = str(rng.choice(neg_cands))
         inn = idx[n_s]
         va, vb, vn = vecs[ia], vecs[ib], vecs[inn]
         c_pos = float(np.dot(va, vb))
@@ -145,27 +204,33 @@ def main() -> None:
         loss = W_DOMAIN * loss_domain + W_PAIR * loss_pair + W_MARGIN * loss_margin
         hist.append(loss)
 
-        # Apply grads to skill vectors that participated
-        # domain: distribute g_z_domain across chosen skills
-        for i in ids:
-            vecs[i] = l2n(vecs[i] - LR * (W_DOMAIN * g_z_domain / len(ids) + W_PAIR * g_vecs_pair[i]))
-        vecs[ia] = l2n(vecs[ia] - LR * W_MARGIN * g_a)
-        vecs[ib] = l2n(vecs[ib] - LR * W_MARGIN * g_b)
-        vecs[inn] = l2n(vecs[inn] - LR * W_MARGIN * g_n)
+        touched = set(ids) | {ia, ib, inn}
+        for i in touched:
+            g = np.zeros(DIM, dtype=np.float32)
+            if i in ids:
+                g = g + W_DOMAIN * g_z_domain / max(len(ids), 1)
+            if i in g_vecs_pair:
+                g = g + W_PAIR * g_vecs_pair[i]
+            if i == ia:
+                g = g + W_MARGIN * g_a
+            if i == ib:
+                g = g + W_MARGIN * g_b
+            if i == inn:
+                g = g + W_MARGIN * g_n
+            vecs[i] = l2n(vecs[i] - LR * g)
         W -= LR * W_DOMAIN * g_W
 
-        if step % 500 == 0 or step == STEPS - 1:
+        if step % 1000 == 0 or step == STEPS - 1:
             print(
                 f"step={step:4d} loss={loss:.4f} "
                 f"domain={loss_domain:.3f} pair={loss_pair:.3f} margin={loss_margin:.3f} "
                 f"acc_hint={probs[y]:.2f}"
             )
 
-    # Domain accuracy probe
     correct = 0
     total = 0
     for d, bundle in BUNDLES.items():
-        for _ in range(20):
+        for _ in range(30):
             k = int(rng.integers(1, min(3, len(bundle)) + 1))
             chosen = list(rng.choice(bundle, size=k, replace=False))
             z = np.sum(vecs[[idx[s] for s in chosen]], axis=0)
@@ -187,19 +252,22 @@ def main() -> None:
 
     entries = {s: [round(float(x), 6) for x in vecs[idx[s]]] for s in skills}
     out = {
-        "id": "skill-task-v1",
+        "id": "skill-task-v2",
         "dim": DIM,
         "version": 1,
         "notes": (
-            "NFCM TARC task-loss codebook (domain + pair + margin). "
+            "NFCM TARC task-loss codebook v2 (dim=128, expanded skills + phrase co-occur). "
             "Research toy — not a foundation model."
         ),
         "entries": entries,
         "train": {
-            "method": "TARC-task-loss",
+            "method": "TARC-task-loss-v2",
             "steps": STEPS,
             "lr": LR,
             "seed": SEED,
+            "n_skills": len(skills),
+            "n_cooccur": len(COOCCUR),
+            "corpus": str(CORPUS_PATH.name),
             "domain_acc_probe": domain_acc,
             "mean_within_cosine": float(np.mean(within)),
             "mean_across_cosine": float(np.mean(across)),
@@ -209,10 +277,10 @@ def main() -> None:
     }
     out_dir = Path(__file__).resolve().parent / "checkpoints"
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / "skill-task-v1.json"
+    path = out_dir / "skill-task-v2.json"
     path.write_text(json.dumps(out, indent=2) + "\n")
     print(
-        f"wrote {path} domain_acc={domain_acc:.3f} "
+        f"wrote {path} skills={len(skills)} domain_acc={domain_acc:.3f} "
         f"within={np.mean(within):.3f} across={np.mean(across):.3f}"
     )
     if domain_acc < 0.55:

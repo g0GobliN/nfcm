@@ -12,7 +12,7 @@
 3. Blend residuals into a latent z
 4. Hypernet decode z → tiny weight tensors (task-metric trained)
 5. Page cold skills under a RAM budget
-6. Forward pass + **greedy text decode** (fixed vocab — not an LLM)
+6. Forward pass + **greedy text decode** (fixed vocab + phrase-trained head)
 7. Score at fixed RAM (footprint + discrimination + probe energy)
 ```
 

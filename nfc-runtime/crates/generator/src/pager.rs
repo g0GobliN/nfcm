@@ -211,7 +211,7 @@ mod tests {
     fn pages_and_evicts_under_budget() {
         let bank = SkillCodebook::builtin();
         // Budget for exactly 2 skills.
-        let mut pager = SkillPager::new(bank, skill_bytes(64) * 2);
+        let mut pager = SkillPager::new(bank.clone(), skill_bytes(bank.dim) * 2);
         let (hit, _) = pager.activate(&["python".into(), "debugging".into()]);
         assert_eq!(hit.len(), 2);
         assert_eq!(pager.hot.len(), 2);
@@ -226,7 +226,7 @@ mod tests {
     #[test]
     fn evict_cold_frees_bytes() {
         let bank = SkillCodebook::builtin();
-        let mut pager = SkillPager::new(bank, skill_bytes(64) * 8);
+        let mut pager = SkillPager::new(bank.clone(), skill_bytes(bank.dim) * 8);
         pager.activate(&["python".into(), "rust".into(), "math".into()]);
         let freed = pager.evict_cold(&["python".into()]);
         assert!(freed > 0);

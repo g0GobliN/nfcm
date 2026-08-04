@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""NFCM TARC — task-metric hypernetwork trainer.
+"""NFCM TARC — task-metric hypernetwork trainer (scaled v2).
 
 Goes beyond teacher-mimic. Losses:
   L_recon   — decode task latent z → weight patch ≈ task-conditioned teacher
-  L_sep     — Frobenius distance between coding vs math specialist weights (encourage)
+  L_sep     — Frobenius distance between coding vs math specialist weights
   L_budget  — keep |alpha| modest (RAM proxy / soft compression)
 
-Writes checkpoints/task-v1.json (HyperCheckpoint JSON for Rust loader).
+Writes checkpoints/task-v2.json (HyperCheckpoint JSON for Rust loader).
 
 Usage:
   python3 train_task.py
@@ -19,11 +19,11 @@ from pathlib import Path
 
 import numpy as np
 
-LATENT_DIM = 64
-H = 64
-ROWS, COLS = 32, 32
-STEPS = 2000
-LR = 0.03
+LATENT_DIM = 128
+H = 128
+ROWS, COLS = 64, 64
+STEPS = 4000
+LR = 0.025
 SEED = 13
 W_RECON = 1.0
 W_SEP = 0.15
@@ -31,11 +31,9 @@ W_BUDGET = 0.02
 
 
 def domain_latent(rng: np.random.Generator, domain: str) -> np.ndarray:
-    """Synthetic task latent biased by domain (mirrors Rust domain slots)."""
     z = rng.uniform(-1, 1, LATENT_DIM).astype(np.float32)
     slots = {"coding": 0, "math": 1, "writing": 2, "research": 3, "medical": 4}
     z[slots[domain]] += 0.55
-    # skill-ish noise
     z += rng.normal(0, 0.05, LATENT_DIM).astype(np.float32)
     return z
 
@@ -43,7 +41,6 @@ def domain_latent(rng: np.random.Generator, domain: str) -> np.ndarray:
 def teacher(z: np.ndarray, rows: int, cols: int) -> np.ndarray:
     d = z.shape[0]
     w = np.zeros((rows, cols), dtype=np.float32)
-    # Task-conditioned: scale by domain energy in first 5 dims
     scale = 0.12 + 0.08 * float(np.mean(np.abs(z[:5])))
     for r in range(rows):
         for c in range(cols):
@@ -76,28 +73,26 @@ def main() -> None:
 
     losses: list[float] = []
     seps: list[float] = []
+    domains = ["coding", "math", "writing", "research", "medical"]
 
     for step in range(STEPS):
-        z = domain_latent(rng, ["coding", "math", "writing", "research"][step % 4])
+        z = domain_latent(rng, domains[step % len(domains)])
         tgt = teacher(z, ROWS, COLS)
         pred = student(z, p, q, float(alpha))
         err = pred - tgt
         loss_recon = float(np.mean(err * err))
 
-        # Separation: coding vs math specialists should differ
         z_c = domain_latent(rng, "coding")
         z_m = domain_latent(rng, "math")
         w_c = student(z_c, p, q, float(alpha))
         w_m = student(z_m, p, q, float(alpha))
         sep = fro_dist(w_c, w_m)
-        # maximize sep → minimize -sep
         loss_sep = -sep
         loss_budget = float(alpha * alpha)
         loss = W_RECON * loss_recon + W_SEP * loss_sep + W_BUDGET * loss_budget
         losses.append(loss)
         seps.append(sep)
 
-        # Grads for recon (same structure as train_toy)
         u = p @ z
         v = q @ z
         d_alpha = 0.0
@@ -116,7 +111,6 @@ def main() -> None:
         g_q = np.outer(d_v, z).astype(np.float32) * W_RECON
         d_alpha *= W_RECON
 
-        # Finite-diff nudge on alpha for sep + budget
         eps = 1e-3
         alpha_p = float(alpha) + eps
         sep_p = fro_dist(student(z_c, p, q, alpha_p), student(z_m, p, q, alpha_p))
@@ -127,21 +121,19 @@ def main() -> None:
         q -= LR * g_q
         alpha = np.float32(alpha - LR * d_alpha)
 
-        if step % 200 == 0 or step == STEPS - 1:
+        if step % 500 == 0 or step == STEPS - 1:
             print(
                 f"step={step:4d} loss={loss:.5f} recon={loss_recon:.5f} "
                 f"sep={sep:.4f} alpha={float(alpha):.4f}"
             )
 
-    # Final metrics
     final_sep = float(np.mean(seps[-100:]))
     z_c = domain_latent(rng, "coding")
-    z_m = domain_latent(rng, "math")
     recon_c = float(np.mean((student(z_c, p, q, float(alpha)) - teacher(z_c, ROWS, COLS)) ** 2))
 
     out_dir = Path(__file__).resolve().parent / "checkpoints"
     out_dir.mkdir(parents=True, exist_ok=True)
-    out = out_dir / "task-v1.json"
+    out = out_dir / "task-v2.json"
     payload = {
         "version": 1,
         "latent_dim": LATENT_DIM,
@@ -153,8 +145,8 @@ def main() -> None:
         "q_cols": LATENT_DIM,
         "q": q.reshape(-1).tolist(),
         "notes": (
-            f"NFCM TARC task-metric hypernet; seed={SEED}; steps={STEPS}; "
-            f"recon_c={recon_c:.3e}; mean_sep={final_sep:.4f}; "
+            f"NFCM TARC task-metric hypernet v2; dim={LATENT_DIM}; patch={ROWS}x{COLS}; "
+            f"seed={SEED}; steps={STEPS}; recon_c={recon_c:.3e}; mean_sep={final_sep:.4f}; "
             "research toy — not an LLM"
         ),
     }

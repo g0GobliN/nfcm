@@ -97,6 +97,8 @@ pub fn resolve_checkpoint_path() -> Option<std::path::PathBuf> {
     let mut dir = std::env::current_dir().ok()?;
     for _ in 0..6 {
         for rel in [
+            "experiments/neural-generation/hypernetwork/checkpoints/task-v2.json",
+            "nfc-runtime/experiments/neural-generation/hypernetwork/checkpoints/task-v2.json",
             "experiments/neural-generation/hypernetwork/checkpoints/task-v1.json",
             "nfc-runtime/experiments/neural-generation/hypernetwork/checkpoints/task-v1.json",
             "experiments/neural-generation/hypernetwork/checkpoints/toy-v1.json",

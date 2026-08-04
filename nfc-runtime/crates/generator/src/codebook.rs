@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 pub const DEFAULT_CODEBOOK_ID: &str = "skill-codebook-v1";
-pub const DEFAULT_DIM: usize = 64;
+pub const DEFAULT_DIM: usize = 128;
 
 #[derive(Debug, Error)]
 pub enum CodebookError {
@@ -172,6 +172,10 @@ pub fn resolve_codebook_path() -> Option<PathBuf> {
         }
     }
     let candidates = [
+        PathBuf::from("experiments/neural-generation/codebook/checkpoints/skill-task-v2.json"),
+        PathBuf::from(
+            "nfc-runtime/experiments/neural-generation/codebook/checkpoints/skill-task-v2.json",
+        ),
         PathBuf::from("experiments/neural-generation/codebook/checkpoints/skill-task-v1.json"),
         PathBuf::from(
             "nfc-runtime/experiments/neural-generation/codebook/checkpoints/skill-task-v1.json",
@@ -191,6 +195,7 @@ pub fn resolve_codebook_path() -> Option<PathBuf> {
     if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
         let root = PathBuf::from(manifest).join("../../experiments/neural-generation/codebook");
         for name in [
+            "checkpoints/skill-task-v2.json",
             "checkpoints/skill-task-v1.json",
             "checkpoints/skill-trained-v1.json",
             "skill-v1.json",
