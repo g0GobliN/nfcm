@@ -14,6 +14,7 @@ Welcome to the NFCM docs.
 | [research-notes.md](research-notes.md) | Research roadmap |
 | [maintainer.md](maintainer.md) | Branch protection, CI, labels |
 | [inference-backends.md](inference-backends.md) | Mock / Candle / GGUF seams |
+| [phase-2.md](phase-2.md) | Latent weight generator prototype |
 
 ## Community
 

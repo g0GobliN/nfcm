@@ -6,125 +6,183 @@
 
 <p align="center">
   <strong>Neural Foundation Compression Model</strong><br/>
-  Local-first AI runtime — task-specific subnetworks at runtime, not one huge general LLM.
+  A local AI runtime that builds the <em>right</em> model for the job — on your machine, under your RAM budget.
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT" /></a>
-  <a href="nfc-runtime/Cargo.toml"><img src="https://img.shields.io/badge/rust-workspace-orange.svg" alt="Rust" /></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-phase%201%20foundation-blue.svg" alt="Status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT" /></a>
+  <a href="nfc-runtime/Cargo.toml"><img src="https://img.shields.io/badge/Rust-workspace-orange.svg" alt="Rust" /></a>
+  <a href="nfc-runtime/apps/desktop"><img src="https://img.shields.io/badge/Desktop-Tauri%20%2B%20React-blue.svg" alt="Desktop" /></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs welcome" /></a>
 </p>
-
-> **Honesty first:** Phase 1 is an **engineering platform** (runtime, registry, memory manager, mock generator, desktop UI). It does **not** yet implement a production 32B compression algorithm or claim trained-model quality.
 
 ---
 
-## Vision
+## Why NFCM?
 
-Long-term goal: make high-capability AI usable on low-memory devices by:
+Shipping a 30B+ general LLM to every device is wasteful. Most sessions only need a **coding**, **math**, or **research** specialist — and they need to fit in limited RAM.
 
-- storing **compressed knowledge representations**
-- **generating** task-specific subnetworks at runtime
-- activating only required capabilities
-- optimizing memory dynamically
+NFCM explores a different path: keep knowledge compressed, **compile** a task profile, **generate** a specialist subnetwork at runtime, and run it **locally** with memory you can see and control.
 
-Phase 1 builds the **plug-in surface** where that research can land (`WeightGenerator` trait).
+Not another cloud chatbot wrapper — a workstation for neural compression and dynamic capability.
 
-## What's in this repo
+---
 
-| Path | Purpose |
-|------|---------|
-| [`nfc-runtime/`](nfc-runtime/) | Runtime framework + Tauri desktop app |
-| [`docs/`](docs/) | Project docs, structure, architecture |
-| [`assets/logo/`](assets/logo/) | Canonical logo sources |
-| [`branding/`](branding/) | Derived icon sizes |
-| [`nfc-runtime/experiments/`](nfc-runtime/experiments/) | Research sandbox (not production) |
+## Idea in one picture
 
-## Quick start
+```mermaid
+flowchart LR
+  A["User intent<br/>Python coding assistant"] --> B["TaskCompiler"]
+  B --> C["TaskProfile<br/>domain · skills · RAM limit"]
+  C --> D["WeightGenerator"]
+  D --> E["GeneratedModel<br/>layers · latent · budget"]
+  E --> F["RuntimeEngine"]
+  F --> G["InferenceBackend"]
+  G --> H["Response<br/>local · labeled"]
 
-### Prerequisites
-
-- Rust 1.75+ (1.97 tested)
-- Node.js 20+
-- Linux Tauri deps (see [Getting Started](docs/getting-started.md))
-
-### Runtime smoke test
-
-```bash
-cd nfc-runtime
-cargo test --workspace --exclude nfc-desktop
-cargo run -p nfc-runtime --example smoke
+  style A fill:#1a2330,stroke:#3ecf8e,color:#c8d0dc
+  style H fill:#1a2330,stroke:#d4a574,color:#c8d0dc
 ```
 
-### Desktop app
+Long-term research target: a small stored foundation that can materialize task-specific brains on demand (the “32B-class capability on low memory” vision). The platform you can run today is the plug-in surface for that work.
 
-```bash
-cd nfc-runtime/apps/desktop
-npm install
-npm run tauri dev
+---
+
+## Architecture
+
+```mermaid
+flowchart TB
+  subgraph Desktop["Desktop workstation"]
+    UI["Tauri + React<br/>Dashboard · Compiler · Chat · Console"]
+  end
+
+  subgraph Runtime["nfc-runtime"]
+    Eng["RuntimeEngine"]
+    Mem["MemoryManager"]
+    Sched["Scheduler"]
+  end
+
+  subgraph Seams["Extension seams"]
+    WG["WeightGenerator"]
+    IB["InferenceBackend<br/>mock · candle · gguf"]
+  end
+
+  subgraph Local["Local-first storage"]
+    Reg["SQLite model registry"]
+    Cache["Filesystem cache"]
+    HW["Hardware probes"]
+  end
+
+  UI --> Eng
+  Eng --> Mem
+  Eng --> Sched
+  Eng --> WG
+  Eng --> IB
+  Eng --> Reg
+  Eng --> Cache
+  Eng --> HW
 ```
 
-Frontend-only preview (no Rust shell):
+| Layer | Role |
+|-------|------|
+| **Desktop** | Local workstation UI (no cloud required) |
+| **RuntimeEngine** | Load / unload / infer / optimize |
+| **WeightGenerator** | Task profile → model artifact (mock today; hypernetwork later) |
+| **InferenceBackend** | Mock, optional Candle, GGUF via llama.cpp |
+| **Storage + hardware** | Registry, cache, CPU/RAM/GPU awareness |
 
-```bash
-npm run dev
+---
+
+## What works today
+
+| Capability | Notes |
+|------------|--------|
+| Rust workspace | `tensor` · `hardware` · `storage` · `generator` · `runtime` |
+| Task compiler | Intent → domain, skills, memory limit |
+| Mock weight generation | Exercises the full compile → load → chat loop |
+| Memory manager | Soft budgets (generator / active model / cache) |
+| Model registry | SQLite + on-disk descriptors |
+| Desktop app | Dashboard, Models, Compiler, Console, Chat, Dev Tools |
+| Backend seams | Mock default; Candle feature; GGUF CLI adapter |
+
+Mocks are labeled (`is_mock: true`). No fake production-LLM claims.
+
+---
+
+## Repo map
+
+```text
+nfcm/
+├── nfc-runtime/          # Rust crates + Tauri desktop
+│   ├── apps/desktop/
+│   ├── crates/
+│   └── experiments/      # Research sandbox
+├── docs/                 # Deep documentation
+├── assets/logo/          # Brand mark
+└── branding/             # Derived icon sizes
 ```
 
-Data dir: `~/.local/share/nfcm/`
+```mermaid
+flowchart LR
+  subgraph Crates
+    T[nfc-tensor]
+    H[nfc-hardware]
+    S[nfc-storage]
+    G[nfc-generator]
+    R[nfc-runtime]
+  end
+  T --> G
+  T --> R
+  H --> R
+  S --> R
+  G --> R
+  R --> D[nfc-desktop]
+```
+
+---
+
+## Status
+
+| Area | State |
+|------|--------|
+| Runtime + desktop platform | Ready to explore |
+| Mock generator & inference | Working (labeled) |
+| Candle / GGUF adapters | Scaffold / env-driven |
+| Real hypernetwork compressor | Open research — latent-proto seam landed |
+
+---
+
+## Principles
+
+- **Local-first** — core path has no cloud dependency  
+- **Honest labeling** — mock ≠ trained model  
+- **Clean seams** — swap generators/backends without rewriting the UI  
+- **Memory-aware** — budgets you can inspect and control  
+- **Open** — MIT, contributions welcome  
+
+---
 
 ## Documentation
 
-| Doc | Description |
-|-----|-------------|
-| [Structure](docs/STRUCTURE.md) | Full repository layout |
-| [Getting started](docs/getting-started.md) | Install & run |
-| [Architecture](docs/architecture.md) | Runtime design |
+| Doc | What you’ll find |
+|-----|------------------|
+| [Getting started](docs/getting-started.md) | Install, build, run (quick start lives here) |
+| [Architecture](docs/architecture.md) | Design and seams |
+| [Inference backends](docs/inference-backends.md) | Mock / Candle / GGUF |
 | [Research roadmap](docs/research-notes.md) | Next scientific steps |
-| [Maintainer / CI](docs/maintainer.md) | Branch protection, labels, Dependabot |
-| [Contributing](CONTRIBUTING.md) | How to contribute |
-| [Code of Conduct](CODE_OF_CONDUCT.md) | Community norms |
+| [Structure](docs/STRUCTURE.md) | Full file tree |
+| [Contributing](CONTRIBUTING.md) | How to help, PR / CI norms |
+| [Maintainer notes](docs/maintainer.md) | Branch protection, labels, Dependabot |
 | [Security](SECURITY.md) | Vulnerability reporting |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community norms |
 | [Changelog](CHANGELOG.md) | Release history |
-| [Support](SUPPORT.md) | Where to get help |
+| [Support](SUPPORT.md) | Where to ask questions |
+| [Runtime package](nfc-runtime/README.md) | Crate-level overview |
 
-## Phase 1 status
-
-| Component | Status |
-|-----------|--------|
-| Cargo workspace | Done |
-| Hardware detection | Done |
-| Model registry (SQLite) | Done |
-| Memory manager | Done |
-| Mock `WeightGenerator` | Done |
-| Task compiler (heuristic) | Done |
-| Runtime engine | Done |
-| Tauri + React UI | Done |
-| Real hypernetwork | Not started |
-| Candle / ONNX / llama.cpp | Future |
-
-## Project principles
-
-1. **No fake AI claims** — mock paths are labeled (`is_mock: true`).
-2. **Local-first** — no cloud dependency for core runtime.
-3. **Separable layers** — framework ≠ research algorithm ≠ current mock.
-4. **Low memory** — soft budgets; avoid unnecessary allocations.
-5. **Clean seams** — swap generators/backends without rewriting the UI.
-
-## Contributing
-
-Contributions are welcome — code, docs, tests, research notes, and issue triage.
-
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
-2. Follow the [Code of Conduct](CODE_OF_CONDUCT.md)
-3. Open an issue before large design changes
-4. Keep PRs focused and tested
-
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for people who have helped shape the project.
+---
 
 ## License
 
-Released under the [MIT License](LICENSE).
+[MIT](LICENSE)
 
-## Disclaimer
-
-NFCM Runtime Phase 1 is research/infrastructure software. Generated “brains” from the mock generator are **placeholders**, not production models. Do not use mock inference for medical, legal, or safety-critical decisions.
+*NFCM is infrastructure and research software. Mock outputs are placeholders — not advice for medical, legal, or safety-critical use.*

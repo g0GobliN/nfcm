@@ -9,10 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Phase 2 latent weight generator + latent-probe inference + brain artifact persist/reload
+- Toy hypernetwork train script + checkpoint loader (`NFCM_HYPERNET_CHECKPOINT`)
+- Desktop Settings (backend switch, GGUF import) + real-chat scripts for local llama.cpp
 - Project logo (`assets/logo/`, derived `branding/`) + Tauri & UI icons
 - Pluggable `InferenceBackend` trait (mock default, Candle feature, GGUF/llama.cpp)
 - Runtime snapshot field `inference_backend` + UI surface
-- Docs: `docs/inference-backends.md`
+- Docs: `docs/inference-backends.md`, `docs/phase-2.md`
 - CI: rustfmt, clippy (`-D warnings`), tests, smoke, frontend build + aggregate gate
 - Workflow: reject AI co-author / Generated-by commit trailers
 - Workflow: PR title + secret/large-file sanity checks
@@ -21,11 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- (none yet)
+- Desktop shell visual polish (Syne type, atmosphere, chat UX)
+- GGUF backend: chat-template single-turn, prefer loaded model path over stale env
 
 ### Fixed
 
-- (none yet)
+- Tauri icons converted to RGBA (build panic)
+- Frontend production CSS build (Tailwind `@apply` / config incompat)
 
 ## [0.1.0] — 2026-08-04
 

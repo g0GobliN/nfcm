@@ -10,6 +10,7 @@ pub enum BackendId {
     Mock,
     Candle,
     Gguf,
+    Latent,
 }
 
 impl BackendId {
@@ -18,6 +19,7 @@ impl BackendId {
             Self::Mock => "mock",
             Self::Candle => "candle",
             Self::Gguf => "gguf",
+            Self::Latent => "latent",
         }
     }
 }
@@ -48,6 +50,12 @@ pub struct ModelContext {
     pub architecture: String,
     pub weights_path: Option<String>,
     pub memory_requirement_bytes: u64,
+    /// Task skills from the compiled brain (used by latent-probe).
+    pub skills: Vec<String>,
+    /// Latent vector from Phase 2 generation (may be empty on registry reload).
+    pub latent_values: Vec<f32>,
+    /// In-memory tensors from the weight generator (empty for mock / reload).
+    pub weights: Vec<nfc_tensor::Tensor>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

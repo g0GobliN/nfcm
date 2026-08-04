@@ -3,14 +3,17 @@
 //! Phase 1 default is [`MockInferenceBackend`]. Candle and GGUF/llama.cpp are
 //! real extension points — they do not claim trained-model quality unless a
 //! concrete weight file is loaded and the backend reports `is_mock: false`.
+//! Phase 2 adds [`LatentProbeBackend`] for a tiny CPU pass on generated tensors.
 
 mod candle_backend;
 mod gguf;
+mod latent_probe;
 mod mock;
 mod types;
 
 pub use candle_backend::CandleInferenceBackend;
 pub use gguf::GgufInferenceBackend;
+pub use latent_probe::LatentProbeBackend;
 pub use mock::MockInferenceBackend;
 pub use types::{
     BackendCapabilities, BackendId, BackendInfo, InferenceError, InferenceRequest,
@@ -24,6 +27,7 @@ pub enum BackendKind {
     Mock,
     Candle,
     Gguf,
+    Latent,
 }
 
 impl BackendKind {
@@ -32,6 +36,7 @@ impl BackendKind {
             "mock" => Some(Self::Mock),
             "candle" => Some(Self::Candle),
             "gguf" | "llama" | "llama.cpp" | "llamacpp" => Some(Self::Gguf),
+            "latent" | "latent-probe" | "probe" => Some(Self::Latent),
             _ => None,
         }
     }
@@ -41,6 +46,7 @@ impl BackendKind {
             Self::Mock => "mock",
             Self::Candle => "candle",
             Self::Gguf => "gguf",
+            Self::Latent => "latent",
         }
     }
 }
@@ -78,6 +84,7 @@ pub fn create_backend(kind: BackendKind) -> Box<dyn InferenceBackend> {
         BackendKind::Mock => Box::new(MockInferenceBackend::new()),
         BackendKind::Candle => Box::new(CandleInferenceBackend::new()),
         BackendKind::Gguf => Box::new(GgufInferenceBackend::from_env()),
+        BackendKind::Latent => Box::new(LatentProbeBackend::new()),
     }
 }
 
@@ -86,4 +93,18 @@ pub fn backend_kind_from_env() -> BackendKind {
         .ok()
         .and_then(|s| BackendKind::parse(&s))
         .unwrap_or_default()
+}
+
+/// Prefer explicit `NFCM_INFERENCE_BACKEND`; otherwise pair latent generator → latent probe.
+pub fn resolve_backend_kind(generator: nfc_generator::GeneratorKind) -> BackendKind {
+    if let Some(kind) = std::env::var("NFCM_INFERENCE_BACKEND")
+        .ok()
+        .and_then(|s| BackendKind::parse(&s))
+    {
+        return kind;
+    }
+    match generator {
+        nfc_generator::GeneratorKind::Latent => BackendKind::Latent,
+        nfc_generator::GeneratorKind::Mock => BackendKind::Mock,
+    }
 }

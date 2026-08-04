@@ -54,11 +54,12 @@ export default function ModelManager() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="page-enter mx-auto max-w-5xl space-y-8">
       <header>
-        <h1 className="font-display text-3xl font-bold text-white">Model Manager</h1>
+        <p className="label mb-1">Registry</p>
+        <h1 className="font-display text-4xl font-extrabold tracking-tight text-white">Models</h1>
         <p className="mt-2 text-mist-dim">
-          Registry of installed / generated brains. Import creates a stub entry only.
+          Installed and generated brains. Load one before chatting.
         </p>
       </header>
 

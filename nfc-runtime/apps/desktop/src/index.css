@@ -4,6 +4,8 @@
 
 :root {
   color-scheme: dark;
+  --signal: #3ecf8e;
+  --ink: #070b10;
 }
 
 html,
@@ -14,11 +16,33 @@ body,
 
 body {
   margin: 0;
-  background:
-    radial-gradient(1200px 600px at 10% -10%, rgba(62, 207, 142, 0.08), transparent 55%),
-    radial-gradient(900px 500px at 90% 0%, rgba(212, 165, 116, 0.06), transparent 50%),
-    #0b0f14;
-  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  font-family: "Syne", system-ui, sans-serif;
+  background-color: var(--ink);
+  background-image:
+    radial-gradient(ellipse 90% 55% at 8% -5%, rgba(62, 207, 142, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 45% at 95% 5%, rgba(212, 165, 116, 0.09), transparent 50%),
+    radial-gradient(ellipse 50% 40% at 70% 100%, rgba(62, 207, 142, 0.05), transparent 55%),
+    linear-gradient(180deg, #0a1018 0%, #070b10 40%, #05080c 100%);
+  background-attachment: fixed;
+}
+
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(200, 208, 220, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(200, 208, 220, 0.03) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000, transparent);
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 30%, #000, transparent);
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
 }
 
 ::-webkit-scrollbar {
@@ -29,21 +53,105 @@ body {
   background: #243044;
   border-radius: 4px;
 }
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4d66;
+}
+
+@keyframes fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-dot {
+  0% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.55;
+    transform: scale(0.85);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
 
 @layer components {
   .panel {
-    @apply rounded-lg bg-ink-900/80 shadow-panel backdrop-blur-sm;
+    @apply rounded-xl backdrop-blur-md;
+    background-color: rgba(14, 20, 28, 0.7);
+    border: 1px solid rgba(36, 48, 68, 0.85);
+    box-shadow: 0 0 0 1px rgba(62, 207, 142, 0.1), 0 18px 50px rgba(0, 0, 0, 0.45);
   }
+
   .label {
-    @apply text-xs uppercase tracking-[0.14em] text-mist-dim;
+    @apply text-[11px] font-medium uppercase tracking-[0.16em] text-mist-dim;
   }
+
   .btn {
-    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition;
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition duration-200;
   }
+
   .btn-primary {
     @apply btn bg-signal text-ink-950 hover:bg-signal-dim;
+    box-shadow: 0 0 40px rgba(62, 207, 142, 0.15);
   }
+
+  .btn-primary:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:disabled {
+    @apply cursor-not-allowed opacity-40;
+    box-shadow: none;
+  }
+
   .btn-ghost {
-    @apply btn border border-ink-700 text-mist hover:border-signal/40 hover:text-signal;
+    @apply btn border border-ink-700 text-mist hover:bg-ink-800 hover:text-signal;
+  }
+
+  .btn-ghost:hover {
+    border-color: rgba(62, 207, 142, 0.45);
+  }
+
+  .btn-ghost:active {
+    transform: scale(0.98);
+  }
+
+  .nav-link {
+    @apply relative rounded-lg px-3 py-2.5 text-sm font-medium transition duration-200;
+  }
+
+  .field {
+    @apply rounded-lg border border-ink-700 px-3 py-2.5 text-sm text-mist outline-none transition;
+    background-color: rgba(7, 11, 16, 0.8);
+  }
+
+  .field:focus {
+    border-color: rgba(62, 207, 142, 0.5);
+    box-shadow: 0 0 0 1px rgba(62, 207, 142, 0.25);
+  }
+
+  .field::placeholder {
+    color: rgba(139, 151, 168, 0.6);
+  }
+
+  .page-enter {
+    animation: fade-up 0.45s ease-out both;
+  }
+
+  .animate-fade-up {
+    animation: fade-up 0.35s ease-out both;
+  }
+
+  .animate-pulse-dot {
+    animation: pulse-dot 2s ease-in-out infinite;
   }
 }

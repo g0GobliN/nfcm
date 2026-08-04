@@ -1,8 +1,9 @@
 //! Tauri command surface over `nfc-runtime`.
 
-use nfc_generator::{TaskCategory, TaskProfile};
+use nfc_generator::{GeneratorKind, TaskCategory, TaskProfile};
 use nfc_runtime::{
-    InferenceRequest, Model, RuntimeConfig, RuntimeEngine, RuntimeSnapshot, TaskType,
+    BackendInfo, BackendKind, InferenceRequest, Model, RuntimeConfig, RuntimeEngine,
+    RuntimeSnapshot, TaskType,
 };
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -73,6 +74,31 @@ fn import_model(
         .engine
         .import_model_stub(name, parse_task_type(&task_type), memory_mb)
         .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn import_gguf_model(
+    state: State<'_, AppState>,
+    path: String,
+    name: Option<String>,
+    memory_mb: u64,
+) -> Result<Model, String> {
+    state
+        .engine
+        .import_gguf_model(path, name, memory_mb)
+        .map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn set_backend(state: State<'_, AppState>, backend: String) -> Result<BackendInfo, String> {
+    let kind = BackendKind::parse(&backend)
+        .ok_or_else(|| format!("unknown backend '{backend}' (mock|latent|gguf|candle)"))?;
+    if kind == BackendKind::Gguf {
+        if std::env::var("NFCM_LLAMA_CLI").is_err() {
+            // leave default llama-cli discovery to backend
+        }
+    }
+    state.engine.set_backend(kind).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -210,8 +236,14 @@ pub fn run() {
         .with_env_filter("nfc_runtime=info,nfc_desktop=info")
         .init();
 
-    let engine =
-        RuntimeEngine::start(RuntimeConfig::new(data_dir())).expect("failed to start NFCM runtime");
+    // Desktop defaults to Phase 2 latent path so compile → chat uses real tensors.
+    // Override: NFCM_WEIGHT_GENERATOR=mock|latent and/or NFCM_INFERENCE_BACKEND=...
+    let config = if std::env::var("NFCM_WEIGHT_GENERATOR").is_ok() {
+        RuntimeConfig::new(data_dir())
+    } else {
+        RuntimeConfig::new(data_dir()).with_generator(GeneratorKind::Latent)
+    };
+    let engine = RuntimeEngine::start(config).expect("failed to start NFCM runtime");
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -223,6 +255,8 @@ pub fn run() {
             list_models,
             delete_model,
             import_model,
+            import_gguf_model,
+            set_backend,
             compile_brain,
             compile_from_prompt,
             preview_task,

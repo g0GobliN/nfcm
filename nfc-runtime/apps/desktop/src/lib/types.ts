@@ -57,6 +57,13 @@ export interface BackendInfo {
   };
 }
 
+export interface GeneratorInfo {
+  kind: string;
+  name: string;
+  is_mock: boolean;
+  notes: string;
+}
+
 export interface RuntimeSnapshot {
   status: string;
   hardware: HardwareProfile;
@@ -66,6 +73,7 @@ export interface RuntimeSnapshot {
   logs: string[];
   console_lines: string[];
   inference_backend: BackendInfo;
+  weight_generator: GeneratorInfo;
 }
 
 export interface TaskProfile {

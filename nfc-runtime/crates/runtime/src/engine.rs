@@ -1,13 +1,14 @@
 //! RuntimeEngine — load, unload, infer, optimize.
 
 use crate::inference::{
-    backend_kind_from_env, create_backend, BackendInfo, BackendKind, InferenceBackend,
+    create_backend, resolve_backend_kind, BackendInfo, BackendKind, InferenceBackend,
     InferenceRequest, InferenceResponse, ModelContext,
 };
 use crate::memory::{ComponentKind, MemoryBudget, MemoryManager, MemorySnapshot};
 use crate::scheduler::{Scheduler, SchedulerJob};
 use nfc_generator::{
-    GeneratedModel, GenerationProgress, MockWeightGenerator, TaskCategory, TaskCompiler,
+    create_generator, generate_with_progress, generator_info, generator_kind_from_env,
+    GeneratedModel, GenerationProgress, GeneratorInfo, GeneratorKind, TaskCategory, TaskCompiler,
     TaskProfile, WeightGenerator,
 };
 use nfc_hardware::{HardwareDetector, HardwareProfile};
@@ -55,19 +56,34 @@ pub struct RuntimeConfig {
     pub data_dir: PathBuf,
     pub memory_budget: MemoryBudget,
     pub backend_kind: BackendKind,
+    pub generator_kind: GeneratorKind,
 }
 
 impl RuntimeConfig {
     pub fn new(data_dir: impl Into<PathBuf>) -> Self {
+        let generator_kind = generator_kind_from_env();
         Self {
             data_dir: data_dir.into(),
             memory_budget: MemoryBudget::default(),
-            backend_kind: backend_kind_from_env(),
+            backend_kind: resolve_backend_kind(generator_kind),
+            generator_kind,
         }
     }
 
     pub fn with_backend(mut self, kind: BackendKind) -> Self {
         self.backend_kind = kind;
+        self
+    }
+
+    pub fn with_generator(mut self, kind: GeneratorKind) -> Self {
+        self.generator_kind = kind;
+        // Pair latent generator with probe unless backend was explicitly chosen.
+        if matches!(kind, GeneratorKind::Latent)
+            && matches!(self.backend_kind, BackendKind::Mock)
+            && std::env::var("NFCM_INFERENCE_BACKEND").is_err()
+        {
+            self.backend_kind = BackendKind::Latent;
+        }
         self
     }
 }
@@ -82,6 +98,7 @@ pub struct RuntimeSnapshot {
     pub logs: Vec<String>,
     pub console_lines: Vec<String>,
     pub inference_backend: BackendInfo,
+    pub weight_generator: GeneratorInfo,
 }
 
 struct Inner {
@@ -97,7 +114,8 @@ struct Inner {
     logs: Vec<String>,
     console_lines: Vec<String>,
     compiler: TaskCompiler,
-    generator: MockWeightGenerator,
+    generator: Box<dyn WeightGenerator>,
+    generator_kind: GeneratorKind,
     backend: Box<dyn InferenceBackend>,
     backend_kind: BackendKind,
 }
@@ -130,6 +148,7 @@ impl RuntimeEngine {
         }
 
         let backend = create_backend(config.backend_kind);
+        let generator = create_generator(config.generator_kind);
         let mut inner = Inner {
             status: RuntimeStatus::Running,
             registry,
@@ -143,15 +162,22 @@ impl RuntimeEngine {
             logs: Vec::new(),
             console_lines: Vec::new(),
             compiler: TaskCompiler::default(),
-            generator: MockWeightGenerator::new(),
+            generator,
+            generator_kind: config.generator_kind,
             backend,
             backend_kind: config.backend_kind,
         };
         inner.log(format!(
-            "NFCM runtime started (backend={} — Phase 2 inference seam)",
+            "NFCM runtime started (generator={}, backend={})",
+            config.generator_kind.as_str(),
             config.backend_kind.as_str()
         ));
         inner.console("> runtime online");
+        inner.console(format!(
+            "Weight generator: {} ({})",
+            inner.generator.name(),
+            config.generator_kind.as_str()
+        ));
         inner.console(format!(
             "Inference backend: {} ({})",
             inner.backend.name(),
@@ -183,11 +209,16 @@ impl RuntimeEngine {
             logs: inner.logs.clone(),
             console_lines: inner.console_lines.clone(),
             inference_backend: inner.backend.info(),
+            weight_generator: generator_info(inner.generator_kind, inner.generator.as_ref()),
         })
     }
 
     pub fn backend_kind(&self) -> BackendKind {
         self.inner.lock().backend_kind
+    }
+
+    pub fn generator_kind(&self) -> GeneratorKind {
+        self.inner.lock().generator_kind
     }
 
     pub fn list_models(&self) -> Result<Vec<Model>, RuntimeError> {
@@ -229,6 +260,66 @@ impl RuntimeEngine {
         Ok(model)
     }
 
+    /// Register a local `.gguf` file for the GGUF / llama.cpp backend.
+    pub fn import_gguf_model(
+        &self,
+        path: String,
+        name: Option<String>,
+        memory_mb: u64,
+    ) -> Result<Model, RuntimeError> {
+        let pb = PathBuf::from(&path);
+        if !pb.is_file() {
+            return Err(RuntimeError::Invalid(format!(
+                "GGUF file not found: {path}"
+            )));
+        }
+        if pb
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.eq_ignore_ascii_case("gguf"))
+            != Some(true)
+        {
+            return Err(RuntimeError::Invalid("path must end with .gguf".into()));
+        }
+        let display_name = name.unwrap_or_else(|| {
+            pb.file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("gguf-model")
+                .to_string()
+        });
+        let mut inner = self.inner.lock();
+        let mut model = Model::new(
+            display_name,
+            TaskType::Custom,
+            Architecture::Gguf,
+            memory_mb.max(64) * 1024 * 1024,
+        );
+        model.status = ModelStatus::Ready;
+        model.path = Some(path.clone());
+        model.size_bytes = std::fs::metadata(&pb).map(|m| m.len()).unwrap_or(0);
+        model.description = format!("Imported GGUF — {path}");
+        inner
+            .registry
+            .upsert(&model)
+            .map_err(|e| RuntimeError::Storage(e.to_string()))?;
+        inner.log(format!("imported gguf model {} -> {}", model.name, path));
+        Ok(model)
+    }
+
+    /// Hot-swap inference backend (unloads active model first).
+    pub fn set_backend(&self, kind: BackendKind) -> Result<BackendInfo, RuntimeError> {
+        let mut inner = self.inner.lock();
+        if inner.active_model.is_some() {
+            Self::unload_locked(&mut inner)?;
+        }
+        inner.backend = create_backend(kind);
+        inner.backend_kind = kind;
+        let name = inner.backend.name().to_string();
+        inner.log(format!("switched inference backend to {}", kind.as_str()));
+        inner.console(format!("Backend → {name}"));
+        Ok(inner.backend.info())
+    }
+
     pub fn compile_prompt(&self, prompt: &str) -> TaskProfile {
         self.inner.lock().compiler.compile(prompt)
     }
@@ -257,36 +348,21 @@ impl RuntimeEngine {
     {
         let mut inner = self.inner.lock();
         inner.status = RuntimeStatus::Compiling;
+        let gen_name = inner.generator.name().to_string();
         inner.console(format!("> compile {}", profile.raw_prompt));
-        inner.console("Generating neural configuration... (mock)");
+        inner.console(format!("Generating neural configuration... ({gen_name})"));
 
-        let generated = inner
-            .generator
-            .generate_with_progress(profile.clone(), |p| {
-                on_progress(p.clone());
-            })
-            .map_err(|e| RuntimeError::Generator(e.to_string()))?;
+        let generated = generate_with_progress(inner.generator.as_ref(), profile.clone(), |p| {
+            on_progress(p.clone());
+        })
+        .map_err(|e| RuntimeError::Generator(e.to_string()))?;
 
-        let path = inner
-            .registry
-            .models_dir()
-            .join(format!("{}.nfcm-mock.json", generated.id));
-        let meta = serde_json::json!({
-            "id": generated.id,
-            "name": generated.name,
-            "is_mock": true,
-            "memory_size_bytes": generated.memory_size_bytes,
-            "layers": generated.layers,
-            "latent": generated.latent,
-            "optimization_profile": generated.optimization_profile,
-            "task": generated.task,
-        });
-        std::fs::write(&path, serde_json::to_vec_pretty(&meta).unwrap_or_default())
+        let path = nfc_generator::save_generated_model(inner.registry.models_dir(), &generated)
             .map_err(|e| RuntimeError::Storage(e.to_string()))?;
 
         let _ = inner.cache.put(
             &format!("model-{}", generated.id),
-            &serde_json::to_vec(&meta).unwrap_or_default(),
+            &serde_json::to_vec(&generated).unwrap_or_default(),
             Some(generated.id),
         );
 
@@ -302,10 +378,19 @@ impl RuntimeEngine {
         model.status = ModelStatus::Ready;
         model.path = Some(path.to_string_lossy().to_string());
         model.description = format!(
-            "Mock-generated specialist ({}) — replace with hypernetwork later",
-            profile.domain.as_str()
+            "Generated by {gen_name} ({}) — {}",
+            inner.generator_kind.as_str(),
+            if matches!(inner.generator_kind, GeneratorKind::Mock) {
+                "mock placeholder"
+            } else if gen_name.contains("hypernet") {
+                "trained toy hypernet (not an LLM)"
+            } else {
+                "latent prototype (untrained)"
+            }
         );
-        model.size_bytes = generated.memory_size_bytes;
+        model.size_bytes = std::fs::metadata(&path)
+            .map(|m| m.len())
+            .unwrap_or(generated.memory_size_bytes);
 
         inner
             .registry
@@ -313,7 +398,7 @@ impl RuntimeEngine {
             .map_err(|e| RuntimeError::Storage(e.to_string()))?;
 
         inner.console("Loading components...");
-        inner.log(format!("compiled mock brain: {}", model.name));
+        inner.log(format!("compiled brain via {gen_name}: {}", model.name));
 
         if load {
             Self::load_generated_locked(&mut inner, model.clone(), generated)?;
@@ -330,32 +415,26 @@ impl RuntimeEngine {
             .registry
             .get(id)
             .map_err(|_| RuntimeError::ModelNotFound(id))?;
-        let generated = GeneratedModel {
-            id: model.id,
-            name: model.name.clone(),
-            task: TaskProfile {
-                domain: task_type_to_category(model.task_type),
-                skills: model.skills.clone(),
-                language: None,
-                memory_limit_bytes: model.memory_requirement_bytes,
-                raw_prompt: model.name.clone(),
-            },
-            layers: vec![],
-            weights: vec![],
-            latent: nfc_generator::LatentCode {
-                dim: 0,
-                values: vec![],
-                codebook_id: "reload".into(),
-            },
-            memory_size_bytes: model.memory_requirement_bytes,
-            optimization_profile: nfc_generator::OptimizationProfile {
-                quantize: true,
-                target_memory_bytes: model.memory_requirement_bytes,
-                activation_sparsity: 0.0,
-                notes: "reloaded from registry".into(),
-            },
-            is_mock: true,
+
+        let generated = if model.architecture == Architecture::Gguf
+            || model
+                .path
+                .as_ref()
+                .is_some_and(|p| p.to_ascii_lowercase().ends_with(".gguf"))
+        {
+            stub_generated_from_model(&model)
+        } else if let Some(path) = model.path.as_ref() {
+            match nfc_generator::load_brain_artifact(path) {
+                Ok(g) => g,
+                Err(e) => {
+                    warn!(error = %e, path, "brain artifact missing/invalid; using empty stub");
+                    stub_generated_from_model(&model)
+                }
+            }
+        } else {
+            stub_generated_from_model(&model)
         };
+
         Self::load_generated_locked(&mut inner, model.clone(), generated)?;
         Ok(model)
     }
@@ -438,6 +517,9 @@ impl RuntimeEngine {
             architecture: format!("{:?}", model.architecture),
             weights_path: model.path.clone(),
             memory_requirement_bytes: model.memory_requirement_bytes,
+            skills: generated.task.skills.clone(),
+            latent_values: generated.latent.values.clone(),
+            weights: generated.weights.clone(),
         };
         if let Err(e) = inner.backend.attach(&ctx) {
             if let Some(alloc) = inner.active_alloc.take() {
@@ -510,6 +592,35 @@ fn category_to_task_type(c: TaskCategory) -> TaskType {
     }
 }
 
+fn stub_generated_from_model(model: &Model) -> GeneratedModel {
+    GeneratedModel {
+        id: model.id,
+        name: model.name.clone(),
+        task: TaskProfile {
+            domain: task_type_to_category(model.task_type),
+            skills: model.skills.clone(),
+            language: None,
+            memory_limit_bytes: model.memory_requirement_bytes,
+            raw_prompt: model.name.clone(),
+        },
+        layers: vec![],
+        weights: vec![],
+        latent: nfc_generator::LatentCode {
+            dim: 0,
+            values: vec![],
+            codebook_id: "reload-stub".into(),
+        },
+        memory_size_bytes: model.memory_requirement_bytes,
+        optimization_profile: nfc_generator::OptimizationProfile {
+            quantize: true,
+            target_memory_bytes: model.memory_requirement_bytes,
+            activation_sparsity: 0.0,
+            notes: "reloaded without weight artifact".into(),
+        },
+        is_mock: true,
+    }
+}
+
 fn task_type_to_category(t: TaskType) -> TaskCategory {
     match t {
         TaskType::Coding => TaskCategory::Coding,
@@ -529,9 +640,12 @@ mod tests {
     #[test]
     fn compile_load_infer_unload() {
         let dir = tempdir().unwrap();
-        let engine =
-            RuntimeEngine::start(RuntimeConfig::new(dir.path()).with_backend(BackendKind::Mock))
-                .unwrap();
+        let engine = RuntimeEngine::start(
+            RuntimeConfig::new(dir.path())
+                .with_backend(BackendKind::Mock)
+                .with_generator(GeneratorKind::Mock),
+        )
+        .unwrap();
         let profile = engine.compile_prompt("I need a Python coding assistant");
         assert_eq!(profile.domain, TaskCategory::Coding);
 
@@ -543,6 +657,7 @@ mod tests {
         assert_eq!(snap.status, RuntimeStatus::Running);
         assert!(snap.inference_backend.is_mock);
         assert!(snap.inference_backend.ready);
+        assert!(snap.weight_generator.is_mock);
 
         let resp = engine
             .run_inference(InferenceRequest {
@@ -559,11 +674,83 @@ mod tests {
     }
 
     #[test]
+    fn latent_generator_compiles_nonzero_artifact() {
+        let dir = tempdir().unwrap();
+        let engine = RuntimeEngine::start(
+            RuntimeConfig::new(dir.path())
+                .with_backend(BackendKind::Mock)
+                .with_generator(GeneratorKind::Latent),
+        )
+        .unwrap();
+        let profile = engine.compile_prompt("I need a Python coding assistant");
+        let model = engine.compile_brain(profile, true, |_| {}).unwrap();
+        assert!(model.name.contains("latent") || model.name.contains("hypernet"));
+        let snap = engine.snapshot().unwrap();
+        assert!(!snap.weight_generator.is_mock);
+        assert_eq!(snap.weight_generator.kind, GeneratorKind::Latent);
+        assert!(snap.active_model.is_some());
+    }
+
+    #[test]
+    fn latent_probe_infers_from_generated_weights() {
+        let dir = tempdir().unwrap();
+        let engine = RuntimeEngine::start(
+            RuntimeConfig::new(dir.path())
+                .with_backend(BackendKind::Latent)
+                .with_generator(GeneratorKind::Latent),
+        )
+        .unwrap();
+        let profile = engine.compile_prompt("I need a Python coding assistant");
+        let _model = engine.compile_brain(profile, true, |_| {}).unwrap();
+        let snap = engine.snapshot().unwrap();
+        assert!(!snap.inference_backend.is_mock);
+        assert_eq!(snap.inference_backend.name, "latent-probe-v1");
+
+        let resp = engine
+            .run_inference(InferenceRequest {
+                prompt: "fix borrow checker".into(),
+                max_tokens: 128,
+            })
+            .unwrap();
+        assert!(!resp.is_mock);
+        assert_eq!(resp.backend, "latent-probe-v1");
+        assert!(resp.text.contains("latent-probe"));
+        assert!(resp.text.contains("Skill affinity"));
+    }
+
+    #[test]
+    fn persist_and_reload_keeps_latent_weights() {
+        let dir = tempdir().unwrap();
+        let engine = RuntimeEngine::start(
+            RuntimeConfig::new(dir.path())
+                .with_backend(BackendKind::Latent)
+                .with_generator(GeneratorKind::Latent),
+        )
+        .unwrap();
+        let profile = engine.compile_prompt("I need a Python coding assistant");
+        let model = engine.compile_brain(profile, true, |_| {}).unwrap();
+        engine.unload_model().unwrap();
+        let reloaded = engine.load_model(model.id).unwrap();
+        assert_eq!(reloaded.id, model.id);
+        let resp = engine
+            .run_inference(InferenceRequest {
+                prompt: "hello".into(),
+                max_tokens: 64,
+            })
+            .unwrap();
+        assert!(!resp.is_mock);
+        assert!(resp.text.contains("latent-probe"));
+    }
+
+    #[test]
     fn candle_without_feature_fails_attach_on_load() {
         let dir = tempdir().unwrap();
-        let engine =
-            RuntimeEngine::start(RuntimeConfig::new(dir.path()).with_backend(BackendKind::Candle))
-                .unwrap();
+        let engine = RuntimeEngine::start(
+            RuntimeConfig::new(dir.path())
+                .with_backend(BackendKind::Candle)
+                .with_generator(GeneratorKind::Mock),
+        )
+        .unwrap();
         let profile = engine.compile_prompt("coding rust");
         let model = engine.compile_brain(profile, false, |_| {}).unwrap();
         #[cfg(not(feature = "candle"))]

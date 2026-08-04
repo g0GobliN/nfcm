@@ -1,6 +1,20 @@
-# Local model storage
+# Local models (not committed)
 
-Generated mock descriptors land under the runtime data dir
-(`~/.local/share/nfcm/registry/models/`), not necessarily here.
+Preferred (better replies):
 
-Use this folder for checked-in sample manifests / fixtures.
+- `Qwen2.5-1.5B-Instruct-Q4_K_M.gguf` (~1.1 GiB)
+
+```bash
+cd nfc-runtime/models
+curl -L -o Qwen2.5-1.5B-Instruct-Q4_K_M.gguf \
+  "https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf"
+```
+
+Fallback (weak): `tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf`
+
+CLI: `../tools/llama-b10250/llama-completion`
+
+```bash
+./scripts/run-real-chat.sh
+# Settings → Import Qwen GGUF → Models → Load → Chat
+```
