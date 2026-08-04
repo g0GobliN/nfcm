@@ -1,11 +1,21 @@
 # Neural generation experiments
 
-Placeholder for research notebooks / scripts.
+Training / eval for weight generators. **Not** production LLM training.
 
-Phase 1: platform only. Drop training code and eval harnesses here without coupling them to the desktop app.
+## Hypernetwork (toy)
 
-Suggested layout later:
+```bash
+cd nfc-runtime/experiments/neural-generation/hypernetwork
+python3 train_toy.py
+# → checkpoints/toy-v1.json
+```
 
-- `baselines/` — GGUF / ONNX reference runs
-- `hypernetwork/` — training entrypoints
-- `eval/` — task-suite metrics at fixed RAM budgets
+Runtime auto-loads that checkpoint when present (or set `NFCM_HYPERNET_CHECKPOINT=/path/to.json`).
+
+```bash
+cd nfc-runtime
+NFCM_WEIGHT_GENERATOR=latent cargo run -p nfc-runtime --example smoke
+# generator name becomes latent-hypernet-v1 when checkpoint loads
+```
+
+Honest scope: learns a remix of the outer-product teacher. Not foundation-model quality.

@@ -21,16 +21,74 @@ impl GgufConfig {
     pub fn from_env() -> Self {
         let cli = std::env::var("NFCM_LLAMA_CLI")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| PathBuf::from("llama-cli"));
+            .unwrap_or_else(|_| default_llama_cli());
         let model = std::env::var("NFCM_GGUF_MODEL")
             .ok()
             .filter(|s| !s.is_empty())
-            .map(PathBuf::from);
+            .map(PathBuf::from)
+            .filter(|p| p.is_file())
+            .or_else(default_gguf_model);
         Self {
             cli_path: cli,
             model_path: model,
         }
     }
+}
+
+fn default_llama_cli() -> PathBuf {
+    // Prefer project-bundled tools/ when present.
+    let candidates = [
+        PathBuf::from("tools/llama-b10250/llama-completion"),
+        PathBuf::from("nfc-runtime/tools/llama-b10250/llama-completion"),
+        PathBuf::from("llama-completion"),
+        PathBuf::from("llama-cli"),
+    ];
+    if let Ok(cwd) = std::env::current_dir() {
+        for rel in &candidates {
+            let p = cwd.join(rel);
+            if p.is_file() {
+                return p;
+            }
+            // walk up a few levels
+            let mut dir = cwd.clone();
+            for _ in 0..5 {
+                let p = dir.join(rel);
+                if p.is_file() {
+                    return p;
+                }
+                if !dir.pop() {
+                    break;
+                }
+            }
+        }
+    }
+    PathBuf::from("llama-cli")
+}
+
+fn default_gguf_model() -> Option<PathBuf> {
+    let names = [
+        "models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+        "models/tinyllama-1.1b-chat-v1.0.Q4_K_M.gguf",
+    ];
+    if let Ok(cwd) = std::env::current_dir() {
+        let mut dir = cwd;
+        for _ in 0..6 {
+            for name in &names {
+                let p = dir.join(name);
+                if p.is_file() {
+                    return Some(p);
+                }
+                let p2 = dir.join("nfc-runtime").join(name);
+                if p2.is_file() {
+                    return Some(p2);
+                }
+            }
+            if !dir.pop() {
+                break;
+            }
+        }
+    }
+    None
 }
 
 pub struct GgufInferenceBackend {
@@ -53,23 +111,33 @@ impl GgufInferenceBackend {
     }
 
     fn resolve_model(&self, ctx: &ModelContext) -> Result<PathBuf, InferenceError> {
-        if let Some(p) = &self.config.model_path {
-            if p.exists() {
-                return Ok(p.clone());
-            }
-            return Err(InferenceError::NotConfigured(format!(
-                "NFCM_GGUF_MODEL does not exist: {}",
-                p.display()
-            )));
-        }
+        // Prefer the loaded registry model's path (per-brain), then env default.
         if let Some(path) = &ctx.weights_path {
             let p = PathBuf::from(path);
-            if p.extension().and_then(|e| e.to_str()) == Some("gguf") && p.exists() {
+            if p.extension()
+                .and_then(|e| e.to_str())
+                .is_some_and(|e| e.eq_ignore_ascii_case("gguf"))
+                && p.is_file()
+            {
                 return Ok(p);
             }
         }
+        if let Some(p) = &self.config.model_path {
+            if p.is_file() {
+                return Ok(p.clone());
+            }
+            // Stale env — don't hard-fail if we might still recover (already tried ctx).
+            return Err(InferenceError::NotConfigured(format!(
+                "GGUF not found. Loaded model path missing/invalid, and NFCM_GGUF_MODEL \
+                 does not exist: {}. Import/Load Qwen: \
+                 nfc-runtime/models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf",
+                p.display()
+            )));
+        }
         Err(InferenceError::NotConfigured(
-            "set NFCM_GGUF_MODEL to a .gguf file, or load a Model with a .gguf path".into(),
+            "set NFCM_GGUF_MODEL to a .gguf file, or Load a Model with a .gguf path \
+             (e.g. models/Qwen2.5-1.5B-Instruct-Q4_K_M.gguf)"
+                .into(),
         ))
     }
 
@@ -154,14 +222,32 @@ impl InferenceBackend for GgufInferenceBackend {
             .ok_or_else(|| InferenceError::NotReady("no gguf model attached".into()))?;
 
         let n = request.max_tokens.clamp(1, 512);
-        let output = Command::new(&self.config.cli_path)
+        let system = std::env::var("NFCM_SYSTEM_PROMPT").unwrap_or_else(|_| {
+            "You are a helpful local assistant. Answer clearly and briefly. \
+             Do not invent long unrelated examples unless asked."
+                .into()
+        });
+        let mut cmd = Command::new(&self.config.cli_path);
+        if let Some(dir) = self.config.cli_path.parent() {
+            cmd.current_dir(dir);
+            let mut path = dir.display().to_string();
+            if let Ok(existing) = std::env::var("LD_LIBRARY_PATH") {
+                path = format!("{path}:{existing}");
+            }
+            cmd.env("LD_LIBRARY_PATH", path);
+        }
+        // Use model chat template (single turn) instead of raw prompt stuffing.
+        let output = cmd
             .arg("-m")
             .arg(model_path)
+            .arg("-sys")
+            .arg(&system)
             .arg("-p")
-            .arg(&request.prompt)
+            .arg(request.prompt.trim())
             .arg("-n")
             .arg(n.to_string())
-            .arg("--log-disable")
+            .arg("-st")
+            .arg("--simple-io")
             .output()
             .map_err(|e| InferenceError::Failed(format!("failed to spawn llama CLI: {e}")))?;
 
@@ -173,7 +259,8 @@ impl InferenceBackend for GgufInferenceBackend {
             )));
         }
 
-        let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let raw = String::from_utf8_lossy(&output.stdout);
+        let text = clean_llama_stdout(&raw);
         let tokens_in = request.prompt.split_whitespace().count() as u32;
         let tokens_out = text.split_whitespace().count() as u32;
         Ok(InferenceResponse {
@@ -186,6 +273,24 @@ impl InferenceBackend for GgufInferenceBackend {
             backend: self.name().to_string(),
         })
     }
+}
+
+fn clean_llama_stdout(raw: &str) -> String {
+    let mut s = raw.trim().to_string();
+    for marker in ["> EOF by user", "\n> ", "[end of text]"] {
+        if let Some(idx) = s.find(marker) {
+            s.truncate(idx);
+            s = s.trim().to_string();
+        }
+    }
+    // Prefer text after the last "assistant" role line (ChatML / Zephyr dumps).
+    for sep in ["\nassistant\n", "\n<|assistant|>\n", "<|assistant|>"] {
+        if let Some(idx) = s.rfind(sep) {
+            s = s[idx + sep.len()..].trim().to_string();
+            break;
+        }
+    }
+    s
 }
 
 #[cfg(test)]
@@ -205,6 +310,9 @@ mod tests {
                 architecture: "gguf".into(),
                 weights_path: None,
                 memory_requirement_bytes: 0,
+                skills: vec![],
+                latent_values: vec![],
+                weights: vec![],
             })
             .unwrap_err();
         assert!(matches!(err, InferenceError::NotConfigured(_)));

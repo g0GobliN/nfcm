@@ -66,6 +66,12 @@ function mockSnapshot(): RuntimeSnapshot {
         notes: "Preview stub",
       },
     },
+    weight_generator: {
+      kind: "mock",
+      name: "mock-v1",
+      is_mock: true,
+      notes: "Preview stub",
+    },
   };
 }
 
@@ -106,6 +112,23 @@ export async function importModel(
     taskType,
     memoryMb,
   });
+}
+
+export async function importGgufModel(
+  path: string,
+  name: string | null,
+  memoryMb: number,
+): Promise<Model> {
+  return call("import_gguf_model", { path, name, memoryMb });
+}
+
+export async function setBackend(backend: string): Promise<{
+  id: string;
+  name: string;
+  is_mock: boolean;
+  ready: boolean;
+}> {
+  return call("set_backend", { backend });
 }
 
 export async function compileBrain(

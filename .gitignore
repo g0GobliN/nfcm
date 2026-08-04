@@ -17,3 +17,9 @@ nfc-runtime/apps/desktop/node_modules/
 nfc-runtime/apps/desktop/dist/
 nfc-runtime/apps/desktop/src-tauri/target/
 nfc-runtime/apps/desktop/tsconfig.tsbuildinfo
+nfc-runtime/apps/desktop/src-tauri/gen/
+
+# Large local LLM artifacts (download locally)
+nfc-runtime/models/*.gguf
+nfc-runtime/tools/llama-b*/
+nfc-runtime/tools/*.tar.gz

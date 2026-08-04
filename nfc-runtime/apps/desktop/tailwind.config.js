@@ -5,9 +5,9 @@ export default {
     extend: {
       colors: {
         ink: {
-          950: "#0b0f14",
-          900: "#121820",
-          800: "#1a2330",
+          950: "#070b10",
+          900: "#0e141c",
+          800: "#16202c",
           700: "#243044",
           600: "#3a4d66",
         },
@@ -25,11 +25,14 @@ export default {
         },
       },
       fontFamily: {
-        display: ['"IBM Plex Sans"', "system-ui", "sans-serif"],
+        display: ['"Syne"', "system-ui", "sans-serif"],
+        sans: ['"Syne"', "system-ui", "sans-serif"],
         mono: ['"IBM Plex Mono"', "ui-monospace", "monospace"],
       },
       boxShadow: {
-        panel: "0 0 0 1px rgba(62, 207, 142, 0.08), 0 12px 40px rgba(0,0,0,0.35)",
+        panel:
+          "0 0 0 1px rgba(62, 207, 142, 0.1), 0 18px 50px rgba(0,0,0,0.45)",
+        glow: "0 0 40px rgba(62, 207, 142, 0.15)",
       },
     },
   },

@@ -78,7 +78,11 @@ pub struct LayerSpec {
     pub dtype: DType,
 }
 
-/// Output of a weight generator. Not a production LLM — Phase 1 mock only.
+/// Output of a weight generator.
+///
+/// `is_mock: true` means metadata-only placeholder.
+/// `is_mock: false` may still be an **untrained** research prototype — check
+/// `optimization_profile.notes` before treating output as a production model.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct GeneratedModel {
     pub id: Uuid,
@@ -125,23 +129,25 @@ pub trait WeightGenerator: Send + Sync {
     fn name(&self) -> &str;
 
     fn generate(&self, task: TaskProfile) -> Result<GeneratedModel, WeightGeneratorError>;
+}
 
-    fn generate_with_progress<F>(
-        &self,
-        task: TaskProfile,
-        mut on_progress: F,
-    ) -> Result<GeneratedModel, WeightGeneratorError>
-    where
-        F: FnMut(GenerationProgress),
-    {
-        on_progress(GenerationProgress::AnalyzingTask);
-        on_progress(GenerationProgress::SelectingComponents);
-        on_progress(GenerationProgress::GeneratingModel);
-        let model = self.generate(task)?;
-        on_progress(GenerationProgress::OptimizingMemory);
-        on_progress(GenerationProgress::Complete);
-        Ok(model)
-    }
+/// Shared progress wrapper for any [`WeightGenerator`].
+pub fn generate_with_progress<G, F>(
+    generator: &G,
+    task: TaskProfile,
+    mut on_progress: F,
+) -> Result<GeneratedModel, WeightGeneratorError>
+where
+    G: WeightGenerator + ?Sized,
+    F: FnMut(GenerationProgress),
+{
+    on_progress(GenerationProgress::AnalyzingTask);
+    on_progress(GenerationProgress::SelectingComponents);
+    on_progress(GenerationProgress::GeneratingModel);
+    let model = generator.generate(task)?;
+    on_progress(GenerationProgress::OptimizingMemory);
+    on_progress(GenerationProgress::Complete);
+    Ok(model)
 }
 
 /// Helper to build a zero-filled layer tensor from a shape.

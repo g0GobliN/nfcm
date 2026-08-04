@@ -48,6 +48,21 @@ npm install
 npm run tauri dev
 ```
 
+Desktop defaults to **latent generator + latent probe** (Phase 2). For **real LLM chat**:
+
+```bash
+cd nfc-runtime
+./scripts/run-real-chat.sh
+```
+
+That uses TinyLlama GGUF + llama.cpp under `tools/` / `models/`. In the app: **Models → Load TinyLlama → Chat**.
+
+Override mock/latent:
+
+```bash
+NFCM_WEIGHT_GENERATOR=mock npm run tauri dev
+```
+
 ### Frontend-only preview
 
 Useful for UI work without WebKit/GTK:

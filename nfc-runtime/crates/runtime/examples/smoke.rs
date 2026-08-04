@@ -1,4 +1,9 @@
 //! Headless smoke demo for the NFCM runtime (no UI).
+//!
+//! ```bash
+//! cargo run -p nfc-runtime --example smoke
+//! NFCM_WEIGHT_GENERATOR=latent cargo run -p nfc-runtime --example smoke
+//! ```
 
 use nfc_runtime::{InferenceRequest, RuntimeConfig, RuntimeEngine};
 
@@ -19,6 +24,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Loaded: {} ({})", model.name, model.id);
 
     let snap = engine.snapshot()?;
+    println!(
+        "Generator: {} (mock={})",
+        snap.weight_generator.name, snap.weight_generator.is_mock
+    );
     println!(
         "Backend: {} (mock={}, ready={})",
         snap.inference_backend.name, snap.inference_backend.is_mock, snap.inference_backend.ready

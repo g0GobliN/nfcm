@@ -26,6 +26,14 @@ export default function DeveloperTools() {
           <div className="mt-2 font-mono text-white">{snapshot.models.length}</div>
         </div>
         <div className="panel p-4">
+          <div className="label">Weight generator</div>
+          <div className="mt-2 truncate text-white">{snapshot.weight_generator.name}</div>
+          <div className="mt-1 text-xs text-mist-dim">
+            {snapshot.weight_generator.kind} ·{" "}
+            {snapshot.weight_generator.is_mock ? "mock" : "proto"}
+          </div>
+        </div>
+        <div className="panel p-4">
           <div className="label">Inference backend</div>
           <div className="mt-2 truncate text-white">{snapshot.inference_backend.name}</div>
           <div className="mt-1 text-xs text-mist-dim">
@@ -33,11 +41,14 @@ export default function DeveloperTools() {
             {snapshot.inference_backend.ready ? "ready" : "idle"}
           </div>
         </div>
-        <div className="panel p-4">
-          <div className="label">Host</div>
-          <div className="mt-2 truncate text-white">{snapshot.hardware.hostname}</div>
-        </div>
       </div>
+
+      <section className="panel p-5">
+        <div className="label mb-3">Weight generator</div>
+        <pre className="overflow-auto font-mono text-xs text-mist">
+          {JSON.stringify(snapshot.weight_generator, null, 2)}
+        </pre>
+      </section>
 
       <section className="panel p-5">
         <div className="label mb-3">Backend capabilities</div>
