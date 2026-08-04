@@ -1,0 +1,13 @@
+/target
+**/target
+apps/desktop/node_modules
+apps/desktop/dist
+apps/desktop/src-tauri/target
+**/*.rs.bk
+.DS_Store
+.env
+.env.*
+nfcm-data/
+*.sqlite
+.idea
+.vscode

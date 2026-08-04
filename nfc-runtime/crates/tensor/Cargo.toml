@@ -1,0 +1,13 @@
+[package]
+name = "nfc-tensor"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Lightweight tensor utilities for NFCM runtime"
+
+[dependencies]
+serde = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]
+tempfile = { workspace = true }

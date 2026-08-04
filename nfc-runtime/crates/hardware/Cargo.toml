@@ -1,0 +1,13 @@
+[package]
+name = "nfc-hardware"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Local hardware detection for NFCM runtime"
+
+[dependencies]
+serde = { workspace = true }
+sysinfo = { workspace = true }
+thiserror = { workspace = true }
+
+[dev-dependencies]

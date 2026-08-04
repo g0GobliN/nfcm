@@ -1,0 +1,49 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(1200px 600px at 10% -10%, rgba(62, 207, 142, 0.08), transparent 55%),
+    radial-gradient(900px 500px at 90% 0%, rgba(212, 165, 116, 0.06), transparent 50%),
+    #0b0f14;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #243044;
+  border-radius: 4px;
+}
+
+@layer components {
+  .panel {
+    @apply rounded-lg bg-ink-900/80 shadow-panel backdrop-blur-sm;
+  }
+  .label {
+    @apply text-xs uppercase tracking-[0.14em] text-mist-dim;
+  }
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 text-sm font-medium transition;
+  }
+  .btn-primary {
+    @apply btn bg-signal text-ink-950 hover:bg-signal-dim;
+  }
+  .btn-ghost {
+    @apply btn border border-ink-700 text-mist hover:border-signal/40 hover:text-signal;
+  }
+}

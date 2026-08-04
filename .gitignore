@@ -1,0 +1,19 @@
+# Root ignore for the NFCM monorepo
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.env
+.env.*
+nfcm-data/
+*.sqlite
+
+# Rust
+**/target/
+nfc-runtime/target/
+
+# Node / Tauri frontend
+nfc-runtime/apps/desktop/node_modules/
+nfc-runtime/apps/desktop/dist/
+nfc-runtime/apps/desktop/src-tauri/target/
+nfc-runtime/apps/desktop/tsconfig.tsbuildinfo
