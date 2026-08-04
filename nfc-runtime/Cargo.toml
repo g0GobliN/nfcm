@@ -36,5 +36,5 @@ parking_lot = "0.12"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 rusqlite = { version = "0.40", features = ["bundled"] }
-sysinfo = "0.33"
+sysinfo = "0.39"
 tempfile = "3"
