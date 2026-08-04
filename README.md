@@ -6,125 +6,144 @@
 
 <p align="center">
   <strong>Neural Foundation Compression Model</strong><br/>
-  Local-first AI runtime — task-specific subnetworks at runtime, not one huge general LLM.
+  A local AI runtime that builds the <em>right</em> model for the job — on your machine, under your RAM budget.
 </p>
 
 <p align="center">
-  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT" /></a>
-  <a href="nfc-runtime/Cargo.toml"><img src="https://img.shields.io/badge/rust-workspace-orange.svg" alt="Rust" /></a>
-  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-phase%201%20foundation-blue.svg" alt="Status" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="MIT" /></a>
+  <a href="nfc-runtime/Cargo.toml"><img src="https://img.shields.io/badge/Rust-workspace-orange.svg" alt="Rust" /></a>
+  <a href="nfc-runtime/apps/desktop"><img src="https://img.shields.io/badge/Desktop-Tauri%20%2B%20React-blue.svg" alt="Desktop" /></a>
+  <a href="CONTRIBUTING.md"><img src="https://img.shields.io/badge/PRs-welcome-brightgreen.svg" alt="PRs welcome" /></a>
 </p>
-
-> **Honesty first:** Phase 1 is an **engineering platform** (runtime, registry, memory manager, mock generator, desktop UI). It does **not** yet implement a production 32B compression algorithm or claim trained-model quality.
 
 ---
 
-## Vision
+## Why NFCM?
 
-Long-term goal: make high-capability AI usable on low-memory devices by:
+Shipping a 30B+ general LLM to every laptop is wasteful. Most of the time you only need a **coding** brain, a **math** brain, or a **research** brain — and you need it to fit in limited RAM.
 
-- storing **compressed knowledge representations**
-- **generating** task-specific subnetworks at runtime
-- activating only required capabilities
-- optimizing memory dynamically
+NFCM explores a different path:
 
-Phase 1 builds the **plug-in surface** where that research can land (`WeightGenerator` trait).
+1. Keep knowledge in a **compressed foundation**
+2. **Compile** a task profile (“Python coding assistant, 1GB”)
+3. **Generate** a specialist subnetwork at runtime
+4. Run inference **locally**, with memory you can see and control
 
-## What's in this repo
+Think of it as a workstation for *neural compression + dynamic capability* — not another cloud chatbot wrapper.
 
-| Path | Purpose |
-|------|---------|
-| [`nfc-runtime/`](nfc-runtime/) | Runtime framework + Tauri desktop app |
-| [`docs/`](docs/) | Project docs, structure, architecture |
-| [`assets/logo/`](assets/logo/) | Canonical logo sources |
-| [`branding/`](branding/) | Derived icon sizes |
-| [`nfc-runtime/experiments/`](nfc-runtime/experiments/) | Research sandbox (not production) |
+---
+
+## What you get today
+
+The engineering **platform** is real and usable. You can clone, run tests, open the desktop app, compile a “brain,” and talk to it through the playground.
+
+| Built | What it does |
+|-------|----------------|
+| **Runtime engine** (Rust) | Load / unload / infer / optimize memory |
+| **Task compiler** | Natural language → `TaskProfile` (skills, domain, RAM limit) |
+| **Weight generator seam** | `WeightGenerator` trait — mock today, hypernetwork tomorrow |
+| **Inference backends** | Mock default; optional Candle feature; GGUF via llama.cpp |
+| **Model registry** | SQLite + local filesystem cache |
+| **Hardware + memory manager** | CPU/RAM/GPU probes and soft RAM budgets |
+| **Desktop workstation** | Dashboard, Models, Compiler, Console, Chat, Dev Tools |
+
+```text
+“I need a Python coding assistant”
+        │
+        ▼
+   TaskProfile  →  WeightGenerator  →  RuntimeEngine  →  Chat
+```
+
+We label mocks clearly (`is_mock: true`). No fake “32B on your phone” claims — the research that gets us there plugs into the seams we already shipped.
+
+---
 
 ## Quick start
 
-### Prerequisites
-
-- Rust 1.75+ (1.97 tested)
-- Node.js 20+
-- Linux Tauri deps (see [Getting Started](docs/getting-started.md))
-
-### Runtime smoke test
+**Prereqs:** Rust 1.75+, Node 20+, Linux recommended for the desktop shell ([details](docs/getting-started.md)).
 
 ```bash
-cd nfc-runtime
+git clone https://github.com/g0GobliN/nfcm.git
+cd nfcm/nfc-runtime
+
+# Core runtime
 cargo test --workspace --exclude nfc-desktop
 cargo run -p nfc-runtime --example smoke
-```
 
-### Desktop app
-
-```bash
-cd nfc-runtime/apps/desktop
+# Desktop app
+cd apps/desktop
 npm install
-npm run tauri dev
+npm run tauri dev          # full app
+# npm run dev              # UI preview without Tauri
 ```
 
-Frontend-only preview (no Rust shell):
+Data stays local: `~/.local/share/nfcm/`
 
-```bash
-npm run dev
+---
+
+## Repo map
+
+```text
+nfcm/
+├── nfc-runtime/     # Rust workspace + Tauri desktop app
+├── docs/            # Architecture, backends, research notes
+├── assets/logo/     # Brand mark
+├── experiments/     # (under nfc-runtime) research sandbox
+└── .github/         # CI, issue templates, Dependabot
 ```
 
-Data dir: `~/.local/share/nfcm/`
+| Want to… | Start here |
+|----------|------------|
+| Understand design | [docs/architecture.md](docs/architecture.md) |
+| Plug in Candle / GGUF | [docs/inference-backends.md](docs/inference-backends.md) |
+| Push research | [docs/research-notes.md](docs/research-notes.md) |
+| Navigate files | [docs/STRUCTURE.md](docs/STRUCTURE.md) |
 
-## Documentation
+---
 
-| Doc | Description |
-|-----|-------------|
-| [Structure](docs/STRUCTURE.md) | Full repository layout |
-| [Getting started](docs/getting-started.md) | Install & run |
-| [Architecture](docs/architecture.md) | Runtime design |
-| [Research roadmap](docs/research-notes.md) | Next scientific steps |
-| [Maintainer / CI](docs/maintainer.md) | Branch protection, labels, Dependabot |
-| [Contributing](CONTRIBUTING.md) | How to contribute |
-| [Code of Conduct](CODE_OF_CONDUCT.md) | Community norms |
-| [Security](SECURITY.md) | Vulnerability reporting |
-| [Changelog](CHANGELOG.md) | Release history |
-| [Support](SUPPORT.md) | Where to get help |
+## Where you can help
 
-## Phase 1 status
+We want builders who care about **honest local AI infrastructure**.
 
-| Component | Status |
-|-----------|--------|
-| Cargo workspace | Done |
-| Hardware detection | Done |
-| Model registry (SQLite) | Done |
-| Memory manager | Done |
-| Mock `WeightGenerator` | Done |
-| Task compiler (heuristic) | Done |
-| Runtime engine | Done |
-| Tauri + React UI | Done |
-| Real hypernetwork | Not started |
-| Candle / ONNX / llama.cpp | Future |
+- **Rust** — runtime, memory scheduler, backends (Candle / ONNX / llama.cpp)
+- **Research** — hypernetworks, latent codes, eval harnesses under `experiments/`
+- **Desktop** — Tauri/React UX for a real AI workstation feel
+- **Docs & tests** — clarity and confidence for the next contributor
 
-## Project principles
+Good first areas:
 
-1. **No fake AI claims** — mock paths are labeled (`is_mock: true`).
-2. **Local-first** — no cloud dependency for core runtime.
-3. **Separable layers** — framework ≠ research algorithm ≠ current mock.
-4. **Low memory** — soft budgets; avoid unnecessary allocations.
-5. **Clean seams** — swap generators/backends without rewriting the UI.
+- Improve task-compiler heuristics
+- Harden GGUF/llama.cpp integration
+- Add eval scripts with fixed RAM budgets
+- Polish the desktop console / playground
 
-## Contributing
+Read [CONTRIBUTING.md](CONTRIBUTING.md), open an issue for big ideas, keep PRs focused. CI runs fmt, clippy, tests, and frontend build on every PR.
 
-Contributions are welcome — code, docs, tests, research notes, and issue triage.
+---
 
-1. Read [CONTRIBUTING.md](CONTRIBUTING.md)
-2. Follow the [Code of Conduct](CODE_OF_CONDUCT.md)
-3. Open an issue before large design changes
-4. Keep PRs focused and tested
+## Principles
 
-See [CONTRIBUTORS.md](CONTRIBUTORS.md) for people who have helped shape the project.
+- **Local-first** — core path has no cloud dependency  
+- **Honest labeling** — mock ≠ trained model  
+- **Clean seams** — swap generators/backends without rewriting the UI  
+- **Memory-aware** — budgets you can inspect and control  
+- **Open** — MIT, PRs welcome  
+
+---
+
+## Status snapshot
+
+| Area | State |
+|------|--------|
+| Runtime + desktop platform | Ready to hack on |
+| Mock generator & inference | Working (clearly labeled) |
+| Candle / GGUF adapters | Scaffold / env-driven |
+| Real hypernetwork compressor | Open research — join us |
+
+---
 
 ## License
 
-Released under the [MIT License](LICENSE).
+[MIT](LICENSE) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
 
-## Disclaimer
-
-NFCM Runtime Phase 1 is research/infrastructure software. Generated “brains” from the mock generator are **placeholders**, not production models. Do not use mock inference for medical, legal, or safety-critical decisions.
+*NFCM is infrastructure and research software. Mock outputs are placeholders — not advice for medical, legal, or safety-critical use.*
