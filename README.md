@@ -1,16 +1,21 @@
-# NFCM
-
 <p align="center">
-  <img src="assets/logo/logo2.png" alt="NFCM logo" width="160" height="160" />
+  <img src="assets/logo/logo2.png" alt="NFCM" width="200" height="200" />
 </p>
 
-**Neural Foundation Compression Model** — a local-first AI runtime that aims to generate task-specific neural subnetworks at runtime instead of shipping one huge general LLM.
+<h1 align="center">NFCM</h1>
+
+<p align="center">
+  <strong>Neural Foundation Compression Model</strong><br/>
+  Local-first AI runtime — task-specific subnetworks at runtime, not one huge general LLM.
+</p>
+
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-green.svg" alt="License: MIT" /></a>
+  <a href="nfc-runtime/Cargo.toml"><img src="https://img.shields.io/badge/rust-workspace-orange.svg" alt="Rust" /></a>
+  <a href="CHANGELOG.md"><img src="https://img.shields.io/badge/status-phase%201%20foundation-blue.svg" alt="Status" /></a>
+</p>
 
 > **Honesty first:** Phase 1 is an **engineering platform** (runtime, registry, memory manager, mock generator, desktop UI). It does **not** yet implement a production 32B compression algorithm or claim trained-model quality.
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![Rust](https://img.shields.io/badge/rust-workspace-orange.svg)](nfc-runtime/Cargo.toml)
-[![Status](https://img.shields.io/badge/status-phase%201%20foundation-blue.svg)](CHANGELOG.md)
 
 ---
 

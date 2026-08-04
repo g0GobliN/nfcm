@@ -1,5 +1,9 @@
 # Getting started
 
+<p align="center">
+  <img src="../assets/logo/logo2.png" alt="NFCM" width="72" height="72" />
+</p>
+
 ## Prerequisites
 
 - **Rust** 1.75+ ([rustup](https://rustup.rs/))

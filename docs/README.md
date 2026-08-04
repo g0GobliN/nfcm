@@ -1,5 +1,9 @@
 # Documentation
 
+<p align="center">
+  <img src="../assets/logo/logo2.png" alt="NFCM" width="96" height="96" />
+</p>
+
 Welcome to the NFCM docs.
 
 | Document | Description |

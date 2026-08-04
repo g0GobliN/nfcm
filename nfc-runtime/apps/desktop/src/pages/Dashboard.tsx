@@ -13,9 +13,16 @@ export default function Dashboard() {
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <header>
-        <h1 className="font-display text-3xl font-bold text-white">NFCM Runtime</h1>
-        <p className="mt-2 text-mist-dim">Local-first workstation · Phase 1 foundation</p>
+      <header className="flex items-center gap-4">
+        <img
+          src="/logo.png"
+          alt="NFCM"
+          className="h-14 w-14 rounded-xl shadow-panel"
+        />
+        <div>
+          <h1 className="font-display text-3xl font-bold text-white">NFCM Runtime</h1>
+          <p className="mt-1 text-mist-dim">Local-first workstation · Phase 1 foundation</p>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

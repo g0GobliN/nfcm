@@ -1,5 +1,9 @@
 # Contributors
 
+<p align="center">
+  <img src="assets/logo/logo2.png" alt="NFCM" width="64" height="64" />
+</p>
+
 Thank you to everyone who helps build NFCM.
 
 ## Core
