@@ -1,28 +1,36 @@
 version: 2
 updates:
+  # Only patch/minor — majors need a dedicated PR (breaking APIs / Tailwind 4 / Vite 8 / etc.)
   - package-ecosystem: cargo
     directory: /nfc-runtime
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - rust
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: npm
     directory: /nfc-runtime/apps/desktop
     schedule:
-      interval: weekly
-    open-pull-requests-limit: 5
+      interval: monthly
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - javascript
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: monthly
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 3
     labels:
       - dependencies
       - ci
+    # Actions majors are usually fine; still keep the limit low
