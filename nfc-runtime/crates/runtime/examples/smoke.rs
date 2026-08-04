@@ -20,6 +20,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let snap = engine.snapshot()?;
     println!(
+        "Backend: {} (mock={}, ready={})",
+        snap.inference_backend.name, snap.inference_backend.is_mock, snap.inference_backend.ready
+    );
+    println!(
         "Memory: {} / {} MB",
         snap.memory.used_mb(),
         snap.memory.max_mb()
@@ -29,7 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         prompt: "explain ownership".into(),
         max_tokens: 64,
     })?;
-    println!("\n{}", resp.text);
+    println!("\n[{}] {}", resp.backend, resp.text);
 
     Ok(())
 }

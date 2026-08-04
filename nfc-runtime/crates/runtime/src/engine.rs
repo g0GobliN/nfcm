@@ -1,6 +1,9 @@
 //! RuntimeEngine — load, unload, infer, optimize.
 
-use crate::inference::{mock_infer, InferenceRequest, InferenceResponse};
+use crate::inference::{
+    backend_kind_from_env, create_backend, BackendInfo, BackendKind, InferenceBackend,
+    InferenceRequest, InferenceResponse, ModelContext,
+};
 use crate::memory::{ComponentKind, MemoryBudget, MemoryManager, MemorySnapshot};
 use crate::scheduler::{Scheduler, SchedulerJob};
 use nfc_generator::{
@@ -27,6 +30,8 @@ pub enum RuntimeError {
     Generator(String),
     #[error("memory error: {0}")]
     Memory(String),
+    #[error("inference error: {0}")]
+    Inference(String),
     #[error("no model loaded")]
     NoModelLoaded,
     #[error("model not found: {0}")]
@@ -49,6 +54,7 @@ pub enum RuntimeStatus {
 pub struct RuntimeConfig {
     pub data_dir: PathBuf,
     pub memory_budget: MemoryBudget,
+    pub backend_kind: BackendKind,
 }
 
 impl RuntimeConfig {
@@ -56,7 +62,13 @@ impl RuntimeConfig {
         Self {
             data_dir: data_dir.into(),
             memory_budget: MemoryBudget::default(),
+            backend_kind: backend_kind_from_env(),
         }
+    }
+
+    pub fn with_backend(mut self, kind: BackendKind) -> Self {
+        self.backend_kind = kind;
+        self
     }
 }
 
@@ -69,6 +81,7 @@ pub struct RuntimeSnapshot {
     pub models: Vec<Model>,
     pub logs: Vec<String>,
     pub console_lines: Vec<String>,
+    pub inference_backend: BackendInfo,
 }
 
 struct Inner {
@@ -85,6 +98,8 @@ struct Inner {
     console_lines: Vec<String>,
     compiler: TaskCompiler,
     generator: MockWeightGenerator,
+    backend: Box<dyn InferenceBackend>,
+    backend_kind: BackendKind,
 }
 
 /// Central orchestrator for the local NFCM runtime.
@@ -109,12 +124,12 @@ impl RuntimeEngine {
             HardwareDetector::detect().map_err(|e| RuntimeError::Hardware(e.to_string()))?;
 
         let mut memory = MemoryManager::new(config.memory_budget);
-        // Cap soft limit to a fraction of available RAM if smaller than default.
         let suggested = hardware.ram.available_bytes / 2;
         if suggested > 0 && suggested < memory.budget().max_ram_bytes {
             memory.set_max_ram(suggested.max(256 * 1024 * 1024));
         }
 
+        let backend = create_backend(config.backend_kind);
         let mut inner = Inner {
             status: RuntimeStatus::Running,
             registry,
@@ -129,9 +144,23 @@ impl RuntimeEngine {
             console_lines: Vec::new(),
             compiler: TaskCompiler::default(),
             generator: MockWeightGenerator::new(),
+            backend,
+            backend_kind: config.backend_kind,
         };
-        inner.log("NFCM runtime started (Phase 1 — mock generator)");
+        inner.log(format!(
+            "NFCM runtime started (backend={} — Phase 2 inference seam)",
+            config.backend_kind.as_str()
+        ));
         inner.console("> runtime online");
+        inner.console(format!(
+            "Inference backend: {} ({})",
+            inner.backend.name(),
+            if inner.backend.is_mock() {
+                "mock"
+            } else {
+                "pluggable"
+            }
+        ));
         inner.console("Ready.");
 
         Ok(Self {
@@ -153,7 +182,12 @@ impl RuntimeEngine {
             models,
             logs: inner.logs.clone(),
             console_lines: inner.console_lines.clone(),
+            inference_backend: inner.backend.info(),
         })
+    }
+
+    pub fn backend_kind(&self) -> BackendKind {
+        self.inner.lock().backend_kind
     }
 
     pub fn list_models(&self) -> Result<Vec<Model>, RuntimeError> {
@@ -212,7 +246,6 @@ impl RuntimeEngine {
             .compile_category(category, language, bytes)
     }
 
-    /// Compile a brain from a task profile using the mock generator, register it, and optionally load.
     pub fn compile_brain<F>(
         &self,
         profile: TaskProfile,
@@ -234,7 +267,6 @@ impl RuntimeEngine {
             })
             .map_err(|e| RuntimeError::Generator(e.to_string()))?;
 
-        // Persist a lightweight JSON descriptor (not claiming real weights).
         let path = inner
             .registry
             .models_dir()
@@ -298,7 +330,6 @@ impl RuntimeEngine {
             .registry
             .get(id)
             .map_err(|_| RuntimeError::ModelNotFound(id))?;
-        // Reconstruct a minimal GeneratedModel shell for memory accounting.
         let generated = GeneratedModel {
             id: model.id,
             name: model.name.clone(),
@@ -339,12 +370,13 @@ impl RuntimeEngine {
         request: InferenceRequest,
     ) -> Result<InferenceResponse, RuntimeError> {
         let inner = self.inner.lock();
-        let model = inner
-            .active_model
-            .as_ref()
-            .ok_or(RuntimeError::NoModelLoaded)?;
-        let response = mock_infer(model.id, &model.name, &request);
-        Ok(response)
+        if inner.active_model.is_none() {
+            return Err(RuntimeError::NoModelLoaded);
+        }
+        inner
+            .backend
+            .infer(&request)
+            .map_err(|e| RuntimeError::Inference(e.to_string()))
     }
 
     pub fn optimize_memory(&self) -> Result<u64, RuntimeError> {
@@ -400,6 +432,20 @@ impl RuntimeEngine {
             }
         }
 
+        let ctx = ModelContext {
+            model_id: model.id,
+            model_name: model.name.clone(),
+            architecture: format!("{:?}", model.architecture),
+            weights_path: model.path.clone(),
+            memory_requirement_bytes: model.memory_requirement_bytes,
+        };
+        if let Err(e) = inner.backend.attach(&ctx) {
+            if let Some(alloc) = inner.active_alloc.take() {
+                inner.memory.release(alloc);
+            }
+            return Err(RuntimeError::Inference(e.to_string()));
+        }
+
         model.status = ModelStatus::Loaded;
         model.updated_at = chrono::Utc::now();
         inner
@@ -409,12 +455,17 @@ impl RuntimeEngine {
 
         inner.active_model = Some(model.clone());
         inner.active_generated = Some(generated);
-        inner.log(format!("loaded model {}", model.name));
-        inner.console(format!("Loaded: {}", model.name));
+        inner.log(format!(
+            "loaded model {} via backend {}",
+            model.name,
+            inner.backend.name()
+        ));
+        inner.console(format!("Loaded: {} [{}]", model.name, inner.backend.name()));
         Ok(())
     }
 
     fn unload_locked(inner: &mut Inner) -> Result<(), RuntimeError> {
+        let _ = inner.backend.detach();
         if let Some(alloc) = inner.active_alloc.take() {
             inner.memory.release(alloc);
         }
@@ -478,7 +529,9 @@ mod tests {
     #[test]
     fn compile_load_infer_unload() {
         let dir = tempdir().unwrap();
-        let engine = RuntimeEngine::start(RuntimeConfig::new(dir.path())).unwrap();
+        let engine =
+            RuntimeEngine::start(RuntimeConfig::new(dir.path()).with_backend(BackendKind::Mock))
+                .unwrap();
         let profile = engine.compile_prompt("I need a Python coding assistant");
         assert_eq!(profile.domain, TaskCategory::Coding);
 
@@ -488,6 +541,8 @@ mod tests {
         let snap = engine.snapshot().unwrap();
         assert!(snap.active_model.is_some());
         assert_eq!(snap.status, RuntimeStatus::Running);
+        assert!(snap.inference_backend.is_mock);
+        assert!(snap.inference_backend.ready);
 
         let resp = engine
             .run_inference(InferenceRequest {
@@ -496,8 +551,29 @@ mod tests {
             })
             .unwrap();
         assert!(resp.is_mock);
+        assert_eq!(resp.backend, "mock-v1");
 
         engine.unload_model().unwrap();
         assert!(engine.snapshot().unwrap().active_model.is_none());
+        assert!(!engine.snapshot().unwrap().inference_backend.ready);
+    }
+
+    #[test]
+    fn candle_without_feature_fails_attach_on_load() {
+        let dir = tempdir().unwrap();
+        let engine =
+            RuntimeEngine::start(RuntimeConfig::new(dir.path()).with_backend(BackendKind::Candle))
+                .unwrap();
+        let profile = engine.compile_prompt("coding rust");
+        let model = engine.compile_brain(profile, false, |_| {}).unwrap();
+        #[cfg(not(feature = "candle"))]
+        {
+            let err = engine.load_model(model.id).unwrap_err();
+            assert!(matches!(err, RuntimeError::Inference(_)));
+        }
+        #[cfg(feature = "candle")]
+        {
+            let _ = engine.load_model(model.id).unwrap();
+        }
     }
 }

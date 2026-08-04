@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Project logo (`assets/logo/`, derived `branding/`) + Tauri & UI icons
+- Pluggable `InferenceBackend` trait (mock default, Candle feature, GGUF/llama.cpp)
+- Runtime snapshot field `inference_backend` + UI surface
+- Docs: `docs/inference-backends.md`
 - CI: rustfmt, clippy (`-D warnings`), tests, smoke, frontend build + aggregate gate
 - Workflow: reject AI co-author / Generated-by commit trailers
 - Workflow: PR title + secret/large-file sanity checks

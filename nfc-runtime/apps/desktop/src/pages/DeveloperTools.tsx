@@ -16,7 +16,7 @@ export default function DeveloperTools() {
         <p className="mt-2 text-mist-dim">Runtime logs, API status, model metadata.</p>
       </header>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="panel p-4">
           <div className="label">API status</div>
           <div className="mt-2 text-signal capitalize">{snapshot.status}</div>
@@ -26,10 +26,25 @@ export default function DeveloperTools() {
           <div className="mt-2 font-mono text-white">{snapshot.models.length}</div>
         </div>
         <div className="panel p-4">
+          <div className="label">Inference backend</div>
+          <div className="mt-2 truncate text-white">{snapshot.inference_backend.name}</div>
+          <div className="mt-1 text-xs text-mist-dim">
+            {snapshot.inference_backend.is_mock ? "mock" : "pluggable"} ·{" "}
+            {snapshot.inference_backend.ready ? "ready" : "idle"}
+          </div>
+        </div>
+        <div className="panel p-4">
           <div className="label">Host</div>
           <div className="mt-2 truncate text-white">{snapshot.hardware.hostname}</div>
         </div>
       </div>
+
+      <section className="panel p-5">
+        <div className="label mb-3">Backend capabilities</div>
+        <pre className="overflow-auto font-mono text-xs text-mist">
+          {JSON.stringify(snapshot.inference_backend, null, 2)}
+        </pre>
+      </section>
 
       <section className="panel p-5">
         <div className="mb-3 flex items-center justify-between">

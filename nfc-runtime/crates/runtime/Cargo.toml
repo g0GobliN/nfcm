@@ -5,6 +5,11 @@ edition.workspace = true
 license.workspace = true
 description = "NFCM local AI runtime engine"
 
+[features]
+default = []
+# Optional Candle ML stack — keep off in default CI to avoid heavy deps.
+candle = ["dep:candle-core"]
+
 [dependencies]
 nfc-tensor = { workspace = true }
 nfc-hardware = { workspace = true }
@@ -18,6 +23,7 @@ chrono = { workspace = true }
 parking_lot = { workspace = true }
 tracing = { workspace = true }
 anyhow = { workspace = true }
+candle-core = { version = "0.8", optional = true }
 
 [dev-dependencies]
 tempfile = { workspace = true }

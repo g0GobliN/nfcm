@@ -1,5 +1,9 @@
 # NFCM Runtime
 
+<p align="center">
+  <img src="../assets/logo/logo2.png" alt="NFCM" width="128" height="128" />
+</p>
+
 Local AI runtime package for the [NFCM](../README.md) project.
 
 > Phase 1 platform only — mock generator, no trained 32B compressor.
@@ -11,6 +15,7 @@ Canonical docs live at the repo root:
 - [Structure](../docs/STRUCTURE.md)
 - [Getting started](../docs/getting-started.md)
 - [Architecture](../docs/architecture.md)
+- [Inference backends](../docs/inference-backends.md)
 - [Research](../docs/research-notes.md)
 - [Contributing](../CONTRIBUTING.md)
 

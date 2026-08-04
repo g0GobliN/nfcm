@@ -7,15 +7,22 @@ export default function Dashboard() {
     return <p className="text-mist-dim">Loading runtime…</p>;
   }
 
-  const { hardware, memory, active_model, status } = snapshot;
+  const { hardware, memory, active_model, status, inference_backend } = snapshot;
   const pct = Math.min(100, Math.round((memory.used_bytes / memory.max_ram_bytes) * 100));
   const gpu = hardware.gpus[0];
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">
-      <header>
-        <h1 className="font-display text-3xl font-bold text-white">NFCM Runtime</h1>
-        <p className="mt-2 text-mist-dim">Local-first workstation · Phase 1 foundation</p>
+      <header className="flex items-center gap-4">
+        <img
+          src="/logo.png"
+          alt="NFCM"
+          className="h-14 w-14 rounded-xl shadow-panel"
+        />
+        <div>
+          <h1 className="font-display text-3xl font-bold text-white">NFCM Runtime</h1>
+          <p className="mt-1 text-mist-dim">Local-first workstation · Phase 1 foundation</p>
+        </div>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -44,6 +51,12 @@ export default function Dashboard() {
             {active_model.architecture}
           </p>
         )}
+        <p className="mt-3 text-sm text-mist-dim">
+          Backend:{" "}
+          <span className="text-mist">{inference_backend.name}</span>
+          {inference_backend.is_mock ? " · mock" : ""}
+          {inference_backend.ready ? " · ready" : " · idle"}
+        </p>
       </section>
 
       <section className="panel p-6">

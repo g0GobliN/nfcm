@@ -32,7 +32,7 @@ export default function ChatPlayground() {
         {
           role: "assistant",
           text: resp.text,
-          meta: `${resp.tokens_in}→${resp.tokens_out} tokens · mock=${resp.is_mock}`,
+          meta: `${resp.backend} · ${resp.tokens_in}→${resp.tokens_out} tokens · mock=${resp.is_mock}`,
         },
       ]);
     } catch (err) {

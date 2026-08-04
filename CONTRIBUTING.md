@@ -1,5 +1,9 @@
 # Contributing to NFCM
 
+<p align="center">
+  <img src="assets/logo/logo2.png" alt="NFCM" width="80" height="80" />
+</p>
+
 Thanks for helping. This project is early — clear, honest contributions matter more than big unfinished features.
 
 ## Before you start

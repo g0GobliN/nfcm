@@ -12,11 +12,14 @@ nfcm/
 ├── SECURITY.md
 ├── SUPPORT.md
 ├── CHANGELOG.md
+├── assets/logo/              # Canonical logo sources (logo2.png primary)
+├── branding/                 # Derived icon sizes
 ├── docs/                     # Cross-cutting documentation
 │   ├── README.md             # Docs index
 │   ├── STRUCTURE.md          # This file
 │   ├── getting-started.md
 │   ├── architecture.md
+│   ├── inference-backends.md
 │   └── research-notes.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/

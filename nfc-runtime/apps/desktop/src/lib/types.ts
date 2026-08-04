@@ -45,6 +45,18 @@ export interface MemorySnapshot {
   other_bytes: number;
 }
 
+export interface BackendInfo {
+  id: string;
+  name: string;
+  is_mock: boolean;
+  ready: boolean;
+  capabilities: {
+    always_available: boolean;
+    loads_external_weights: boolean;
+    notes: string;
+  };
+}
+
 export interface RuntimeSnapshot {
   status: string;
   hardware: HardwareProfile;
@@ -53,6 +65,7 @@ export interface RuntimeSnapshot {
   models: Model[];
   logs: string[];
   console_lines: string[];
+  inference_backend: BackendInfo;
 }
 
 export interface TaskProfile {
@@ -70,6 +83,7 @@ export interface InferenceResponse {
   tokens_in: number;
   tokens_out: number;
   is_mock: boolean;
+  backend: string;
 }
 
 export function formatBytes(bytes: number): string {

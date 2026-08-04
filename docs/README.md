@@ -1,5 +1,9 @@
 # Documentation
 
+<p align="center">
+  <img src="../assets/logo/logo2.png" alt="NFCM" width="96" height="96" />
+</p>
+
 Welcome to the NFCM docs.
 
 | Document | Description |
@@ -9,6 +13,7 @@ Welcome to the NFCM docs.
 | [architecture.md](architecture.md) | Runtime design & seams |
 | [research-notes.md](research-notes.md) | Research roadmap |
 | [maintainer.md](maintainer.md) | Branch protection, CI, labels |
+| [inference-backends.md](inference-backends.md) | Mock / Candle / GGUF seams |
 
 ## Community
 
