@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- Project logo / branding assets (`branding/`) + Tauri & UI icons
+- Project logo (`assets/logo/`, derived `branding/`) + Tauri & UI icons
 - Pluggable `InferenceBackend` trait (mock default, Candle feature, GGUF/llama.cpp)
 - Runtime snapshot field `inference_backend` + UI surface
 - Docs: `docs/inference-backends.md`

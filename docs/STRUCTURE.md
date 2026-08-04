@@ -12,7 +12,8 @@ nfcm/
 ├── SECURITY.md
 ├── SUPPORT.md
 ├── CHANGELOG.md
-├── branding/                 # Logo + icon set
+├── assets/logo/              # Canonical logo sources (logo2.png primary)
+├── branding/                 # Derived icon sizes
 ├── docs/                     # Cross-cutting documentation
 │   ├── README.md             # Docs index
 │   ├── STRUCTURE.md          # This file
