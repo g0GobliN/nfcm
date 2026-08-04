@@ -1,5 +1,9 @@
 # NFCM
 
+<p align="center">
+  <img src="branding/nfcm-icon-256.png" alt="NFCM logo" width="160" height="160" />
+</p>
+
 **Neural Foundation Compression Model** — a local-first AI runtime that aims to generate task-specific neural subnetworks at runtime instead of shipping one huge general LLM.
 
 > **Honesty first:** Phase 1 is an **engineering platform** (runtime, registry, memory manager, mock generator, desktop UI). It does **not** yet implement a production 32B compression algorithm or claim trained-model quality.
@@ -27,6 +31,7 @@ Phase 1 builds the **plug-in surface** where that research can land (`WeightGene
 |------|---------|
 | [`nfc-runtime/`](nfc-runtime/) | Runtime framework + Tauri desktop app |
 | [`docs/`](docs/) | Project docs, structure, architecture |
+| [`branding/`](branding/) | Logo and app icons |
 | [`nfc-runtime/experiments/`](nfc-runtime/experiments/) | Research sandbox (not production) |
 
 ## Quick start

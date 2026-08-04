@@ -12,11 +12,13 @@ nfcm/
 ├── SECURITY.md
 ├── SUPPORT.md
 ├── CHANGELOG.md
+├── branding/                 # Logo + icon set
 ├── docs/                     # Cross-cutting documentation
 │   ├── README.md             # Docs index
 │   ├── STRUCTURE.md          # This file
 │   ├── getting-started.md
 │   ├── architecture.md
+│   ├── inference-backends.md
 │   └── research-notes.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/

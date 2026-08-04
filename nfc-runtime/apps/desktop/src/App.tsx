@@ -24,10 +24,19 @@ function Shell() {
     <div className="flex h-full min-h-screen">
       <aside className="flex w-56 shrink-0 flex-col border-r border-ink-800 bg-ink-900/60 px-4 py-6">
         <div className="mb-8">
-          <div className="font-display text-xl font-bold tracking-tight text-white">
-            NFCM
+          <div className="flex items-center gap-3">
+            <img
+              src="/logo.png"
+              alt="NFCM"
+              className="h-10 w-10 rounded-lg shadow-panel"
+            />
+            <div>
+              <div className="font-display text-xl font-bold tracking-tight text-white">
+                NFCM
+              </div>
+              <div className="text-xs text-mist-dim">Neural Foundation Runtime</div>
+            </div>
           </div>
-          <div className="mt-1 text-xs text-mist-dim">Neural Foundation Runtime</div>
           <div className="mt-4 flex items-center gap-2 text-xs">
             <span
               className={`h-2 w-2 rounded-full ${
