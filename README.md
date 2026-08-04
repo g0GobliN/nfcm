@@ -20,64 +20,92 @@
 
 ## Why NFCM?
 
-Shipping a 30B+ general LLM to every laptop is wasteful. Most of the time you only need a **coding** brain, a **math** brain, or a **research** brain — and you need it to fit in limited RAM.
+Shipping a 30B+ general LLM to every device is wasteful. Most sessions only need a **coding**, **math**, or **research** specialist — and they need to fit in limited RAM.
 
-NFCM explores a different path:
+NFCM explores a different path: keep knowledge compressed, **compile** a task profile, **generate** a specialist subnetwork at runtime, and run it **locally** with memory you can see and control.
 
-1. Keep knowledge in a **compressed foundation**
-2. **Compile** a task profile (“Python coding assistant, 1GB”)
-3. **Generate** a specialist subnetwork at runtime
-4. Run inference **locally**, with memory you can see and control
-
-Think of it as a workstation for *neural compression + dynamic capability* — not another cloud chatbot wrapper.
+Not another cloud chatbot wrapper — a workstation for neural compression and dynamic capability.
 
 ---
 
-## What you get today
+## Idea in one picture
 
-The engineering **platform** is real and usable. You can clone, run tests, open the desktop app, compile a “brain,” and talk to it through the playground.
+```mermaid
+flowchart LR
+  A["User intent<br/>Python coding assistant"] --> B["TaskCompiler"]
+  B --> C["TaskProfile<br/>domain · skills · RAM limit"]
+  C --> D["WeightGenerator"]
+  D --> E["GeneratedModel<br/>layers · latent · budget"]
+  E --> F["RuntimeEngine"]
+  F --> G["InferenceBackend"]
+  G --> H["Response<br/>local · labeled"]
 
-| Built | What it does |
-|-------|----------------|
-| **Runtime engine** (Rust) | Load / unload / infer / optimize memory |
-| **Task compiler** | Natural language → `TaskProfile` (skills, domain, RAM limit) |
-| **Weight generator seam** | `WeightGenerator` trait — mock today, hypernetwork tomorrow |
-| **Inference backends** | Mock default; optional Candle feature; GGUF via llama.cpp |
-| **Model registry** | SQLite + local filesystem cache |
-| **Hardware + memory manager** | CPU/RAM/GPU probes and soft RAM budgets |
-| **Desktop workstation** | Dashboard, Models, Compiler, Console, Chat, Dev Tools |
-
-```text
-“I need a Python coding assistant”
-        │
-        ▼
-   TaskProfile  →  WeightGenerator  →  RuntimeEngine  →  Chat
+  style A fill:#1a2330,stroke:#3ecf8e,color:#c8d0dc
+  style H fill:#1a2330,stroke:#d4a574,color:#c8d0dc
 ```
 
-We label mocks clearly (`is_mock: true`). No fake “32B on your phone” claims — the research that gets us there plugs into the seams we already shipped.
+Long-term research target: a small stored foundation that can materialize task-specific brains on demand (the “32B-class capability on low memory” vision). The platform you can run today is the plug-in surface for that work.
 
 ---
 
-## Quick start
+## Architecture
 
-**Prereqs:** Rust 1.75+, Node 20+, Linux recommended for the desktop shell ([details](docs/getting-started.md)).
+```mermaid
+flowchart TB
+  subgraph Desktop["Desktop workstation"]
+    UI["Tauri + React<br/>Dashboard · Compiler · Chat · Console"]
+  end
 
-```bash
-git clone https://github.com/g0GobliN/nfcm.git
-cd nfcm/nfc-runtime
+  subgraph Runtime["nfc-runtime"]
+    Eng["RuntimeEngine"]
+    Mem["MemoryManager"]
+    Sched["Scheduler"]
+  end
 
-# Core runtime
-cargo test --workspace --exclude nfc-desktop
-cargo run -p nfc-runtime --example smoke
+  subgraph Seams["Extension seams"]
+    WG["WeightGenerator"]
+    IB["InferenceBackend<br/>mock · candle · gguf"]
+  end
 
-# Desktop app
-cd apps/desktop
-npm install
-npm run tauri dev          # full app
-# npm run dev              # UI preview without Tauri
+  subgraph Local["Local-first storage"]
+    Reg["SQLite model registry"]
+    Cache["Filesystem cache"]
+    HW["Hardware probes"]
+  end
+
+  UI --> Eng
+  Eng --> Mem
+  Eng --> Sched
+  Eng --> WG
+  Eng --> IB
+  Eng --> Reg
+  Eng --> Cache
+  Eng --> HW
 ```
 
-Data stays local: `~/.local/share/nfcm/`
+| Layer | Role |
+|-------|------|
+| **Desktop** | Local workstation UI (no cloud required) |
+| **RuntimeEngine** | Load / unload / infer / optimize |
+| **WeightGenerator** | Task profile → model artifact (mock today; hypernetwork later) |
+| **InferenceBackend** | Mock, optional Candle, GGUF via llama.cpp |
+| **Storage + hardware** | Registry, cache, CPU/RAM/GPU awareness |
+
+---
+
+## What works today
+
+| Capability | Notes |
+|------------|--------|
+| Rust workspace | `tensor` · `hardware` · `storage` · `generator` · `runtime` |
+| Task compiler | Intent → domain, skills, memory limit |
+| Mock weight generation | Exercises the full compile → load → chat loop |
+| Memory manager | Soft budgets (generator / active model / cache) |
+| Model registry | SQLite + on-disk descriptors |
+| Desktop app | Dashboard, Models, Compiler, Console, Chat, Dev Tools |
+| Backend seams | Mock default; Candle feature; GGUF CLI adapter |
+
+Mocks are labeled (`is_mock: true`). No fake production-LLM claims.
 
 ---
 
@@ -85,39 +113,42 @@ Data stays local: `~/.local/share/nfcm/`
 
 ```text
 nfcm/
-├── nfc-runtime/     # Rust workspace + Tauri desktop app
-├── docs/            # Architecture, backends, research notes
-├── assets/logo/     # Brand mark
-├── experiments/     # (under nfc-runtime) research sandbox
-└── .github/         # CI, issue templates, Dependabot
+├── nfc-runtime/          # Rust crates + Tauri desktop
+│   ├── apps/desktop/
+│   ├── crates/
+│   └── experiments/      # Research sandbox
+├── docs/                 # Deep documentation
+├── assets/logo/          # Brand mark
+└── branding/             # Derived icon sizes
 ```
 
-| Want to… | Start here |
-|----------|------------|
-| Understand design | [docs/architecture.md](docs/architecture.md) |
-| Plug in Candle / GGUF | [docs/inference-backends.md](docs/inference-backends.md) |
-| Push research | [docs/research-notes.md](docs/research-notes.md) |
-| Navigate files | [docs/STRUCTURE.md](docs/STRUCTURE.md) |
+```mermaid
+flowchart LR
+  subgraph Crates
+    T[nfc-tensor]
+    H[nfc-hardware]
+    S[nfc-storage]
+    G[nfc-generator]
+    R[nfc-runtime]
+  end
+  T --> G
+  T --> R
+  H --> R
+  S --> R
+  G --> R
+  R --> D[nfc-desktop]
+```
 
 ---
 
-## Where you can help
+## Status
 
-We want builders who care about **honest local AI infrastructure**.
-
-- **Rust** — runtime, memory scheduler, backends (Candle / ONNX / llama.cpp)
-- **Research** — hypernetworks, latent codes, eval harnesses under `experiments/`
-- **Desktop** — Tauri/React UX for a real AI workstation feel
-- **Docs & tests** — clarity and confidence for the next contributor
-
-Good first areas:
-
-- Improve task-compiler heuristics
-- Harden GGUF/llama.cpp integration
-- Add eval scripts with fixed RAM budgets
-- Polish the desktop console / playground
-
-Read [CONTRIBUTING.md](CONTRIBUTING.md), open an issue for big ideas, keep PRs focused. CI runs fmt, clippy, tests, and frontend build on every PR.
+| Area | State |
+|------|--------|
+| Runtime + desktop platform | Ready to explore |
+| Mock generator & inference | Working (labeled) |
+| Candle / GGUF adapters | Scaffold / env-driven |
+| Real hypernetwork compressor | Open research |
 
 ---
 
@@ -127,23 +158,31 @@ Read [CONTRIBUTING.md](CONTRIBUTING.md), open an issue for big ideas, keep PRs f
 - **Honest labeling** — mock ≠ trained model  
 - **Clean seams** — swap generators/backends without rewriting the UI  
 - **Memory-aware** — budgets you can inspect and control  
-- **Open** — MIT, PRs welcome  
+- **Open** — MIT, contributions welcome  
 
 ---
 
-## Status snapshot
+## Documentation
 
-| Area | State |
-|------|--------|
-| Runtime + desktop platform | Ready to hack on |
-| Mock generator & inference | Working (clearly labeled) |
-| Candle / GGUF adapters | Scaffold / env-driven |
-| Real hypernetwork compressor | Open research — join us |
+| Doc | What you’ll find |
+|-----|------------------|
+| [Getting started](docs/getting-started.md) | Install, build, run (quick start lives here) |
+| [Architecture](docs/architecture.md) | Design and seams |
+| [Inference backends](docs/inference-backends.md) | Mock / Candle / GGUF |
+| [Research roadmap](docs/research-notes.md) | Next scientific steps |
+| [Structure](docs/STRUCTURE.md) | Full file tree |
+| [Contributing](CONTRIBUTING.md) | How to help, PR / CI norms |
+| [Maintainer notes](docs/maintainer.md) | Branch protection, labels, Dependabot |
+| [Security](SECURITY.md) | Vulnerability reporting |
+| [Code of Conduct](CODE_OF_CONDUCT.md) | Community norms |
+| [Changelog](CHANGELOG.md) | Release history |
+| [Support](SUPPORT.md) | Where to ask questions |
+| [Runtime package](nfc-runtime/README.md) | Crate-level overview |
 
 ---
 
 ## License
 
-[MIT](LICENSE) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md) · [Changelog](CHANGELOG.md)
+[MIT](LICENSE)
 
 *NFCM is infrastructure and research software. Mock outputs are placeholders — not advice for medical, legal, or safety-critical use.*
